@@ -1,0 +1,86 @@
+1. To use the cloud-endpoints-controller, create an CloudEndpoint resouces like the example below:
+
+PROJECT=$(gcloud config get-value project)
+TARGET_IP=0.0.0.0
+
+kubectl create -f - <<EOF
+apiVersion: ctl.isla.solutions/v1
+kind: CloudEndpoint
+metadata:
+  name: service1
+spec:
+  openAPISpec:
+    swagger: "2.0"
+    info:
+      description: "wildcard config for any HTTP service."
+      title: "General HTTP Service."
+      version: "1.0.0"
+    basePath: "/"
+    consumes:
+    - "application/json"
+    produces:
+    - "application/json"
+    schemes:
+    - "https"
+    paths:
+      "/**":
+        get:
+          operationId: Get
+          responses:
+            '200':
+              description: Get
+            default:
+              description: Error
+        delete:
+          operationId: Delete
+          responses:
+            '204':
+              description: Delete
+            default:
+              description: Error
+        patch:
+          operationId: Patch
+          responses:
+            '200':
+              description: Patch
+            default:
+              description: Error
+        post:
+          operationId: Post
+          responses:
+            '200':
+              description: Post
+            default:
+              description: Error
+        put:
+          operationId: Put
+          responses:
+            '200':
+              description: Put
+            default:
+              description: Error
+    security:
+    - google_jwt: []
+    securityDefinitions:
+      google_jwt:
+        authorizationUrl: ""
+        flow: "implicit"
+        type: "oauth2"
+        x-google-issuer: "https://cloud.google.com/iap"
+        x-google-jwks_uri: "https://www.gstatic.com/iap/verify/public_key-jwk"
+        x-google-audiences: ""
+
+    host: "service1.endpoints.${PROJECT}.cloud.goog"
+    x-google-endpoints:
+    - name: "service1.endpoints.${PROJECT}.cloud.goog"
+      target: "${TARGET_IP}"
+EOF
+
+4. Example kubectl commands:
+
+  kubectl get cloudep
+
+  kubectl describe cloudep service1
+
+  kubectl delete cloudep service1
+

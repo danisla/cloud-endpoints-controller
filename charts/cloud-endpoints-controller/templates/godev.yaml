@@ -1,0 +1,82 @@
+{{- if .Values.godev.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "cloud-endpoints-controller.fullname" . }}-godev
+  namespace: metacontroller
+  labels:
+    app: {{ template "cloud-endpoints-controller.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    component: godev
+data:
+  start.sh: |
+    #!/bin/sh
+    apk add --update bash rsync curl git mercurial
+    go get github.com/golang/dep && go install github.com/golang/dep/cmd/dep
+    curl https://glide.sh/get | sh
+    echo "Initialized"
+    while true; do
+      echo -e "HTTP/1.1 200 OK\r\n" | \
+        nc -l -p 8000 2>&1 >/dev/null
+      sleep 1
+    done
+  watcher.sh: |
+    #!/bin/sh
+    apk add --update inotify-tools bash curl
+    curl -o /usr/local/bin/kubectl https://storage.googleapis.com/kubernetes-release/release/v1.8.5/bin/linux/amd64/kubectl && \
+      chmod +x /usr/local/bin/kubectl
+    CMD=/opt/shared/{{ .Chart.Name }}
+    while true; do
+      if [[ -s ${CMD} && -x ${CMD} ]]; then 
+        ${CMD} &
+        inotifywait -e MODIFY -e ATTRIB ${CMD}
+        "INFO: Change detected, restarting"
+        kill -9 $(pidof {{ .Chart.Name }})
+        sleep 5
+      else
+        echo "$(date): Waiting for ${CMD}..."
+        sleep 2
+      fi
+    done
+---
+{{- if .Values.godev.persistence.enabled -}}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ template "cloud-endpoints-controller.fullname" . }}-godev
+  labels:
+    app: {{ template "cloud-endpoints-controller.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    component: godev
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.godev.persistence.size | quote }}
+  storageClassName: ""
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ template "cloud-endpoints-controller.fullname" . }}-godev
+  labels:
+    app: {{ template "cloud-endpoints-controller.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    component: godev
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: {{ .Values.godev.persistence.nfsHost }}
+    path: "{{ .Values.godev.persistence.nfsPath }}"
+{{- end }}
+{{- end }}

@@ -1,0 +1,1 @@
+See the documentation at: https://github.com/GoogleCloudPlatform/kube-metacontroller/blob/master/README.md

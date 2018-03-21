@@ -1,0 +1,12 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gce-ssd
+  labels:
+    app: {{ template "nfs-server.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+provisioner: kubernetes.io/gce-pd
+parameters:
+  type: pd-ssd

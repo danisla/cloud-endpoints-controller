@@ -1,0 +1,4 @@
+apiVersion: v1
+description: Metacontroller for Kubernetes Custom Resource Definitions
+name: kube-metacontroller
+version: 0.1.0

@@ -1,0 +1,6 @@
+oauth.env
+*sa-key.json
+test*
+tmp*
+dev*
+charts/*

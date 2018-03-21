@@ -1,0 +1,44 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cloudendpoints.ctl.isla.solutions
+  labels:
+    app: {{ template "cloud-endpoints-controller.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    component: cloud-endpoints-controller
+spec:
+  group: ctl.isla.solutions
+  version: v1
+  scope: Namespaced
+  names:
+    plural: cloudendpoints
+    singular: cloudendpoint
+    kind: CloudEndpoint
+    shortNames: ["cloudep", "ce"]
+---
+apiVersion: metacontroller.k8s.io/v1alpha1
+kind: LambdaController
+metadata:
+  name: cloud-endpoints-controller
+  labels:
+    app: {{ template "cloud-endpoints-controller.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    component: cloud-endpoints-controller
+spec:
+  parentResource:
+    apiVersion: ctl.isla.solutions/v1
+    resource: cloudendpoints
+  childResources: []
+  clientConfig:
+    service:
+      name: {{ template "cloud-endpoints-controller.fullname" . }}
+      namespace: {{ .Release.Namespace }}
+    caBundle: ...
+  hooks:
+    sync:
+      path: /sync
+  generateSelector: true
