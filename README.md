@@ -1,6 +1,6 @@
 # Cloud Endpoints Controller
 
-## THIS IS NOT AN OFFICIAL GOOGLE PRODUCT
+This is not an official Google product.
 
 ## Intro
 
