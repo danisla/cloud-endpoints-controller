@@ -18,7 +18,7 @@ spec:
       serviceAccountName: {{ template "kube-metacontroller.fullname" . }}
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.name }}"
           command: ["/usr/bin/metacontroller"]
           args:
             - --logtostderr

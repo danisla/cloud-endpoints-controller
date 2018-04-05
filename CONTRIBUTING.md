@@ -3,7 +3,7 @@
 1. Install the prerequisites in the [cloud-endpoints-controller chart README.md](./charts/cloud-endpoints-controller/README.md)
 
 ```
-make install-kube-lego install-kube-metacontroller
+make install-kube-metacontroller
 ```
 
 2. Install the NFS chart (for deps cache), the cloud-endpoints-controller chart with godev enabled, copy the source, install the go dependencies and build the controller from source. This will also run the controller in the dev container.

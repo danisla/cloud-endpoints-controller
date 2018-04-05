@@ -3,8 +3,7 @@
 # Declare variables to be passed into your templates.
 replicaCount: 1
 image:
-  repository: gcr.io/enisoc-kubernetes/metacontroller
-  tag: latest
+  name: gcr.io/enisoc-kubernetes/metacontroller@sha256:18561c63e1c5380ac5bbaabefa933e484bdb499f10b61071506f9a0070bc65f6
   pullPolicy: Always
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
