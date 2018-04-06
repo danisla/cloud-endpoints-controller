@@ -38,6 +38,7 @@ type CloudEndpointControllerStatus struct {
 	ServiceRollout string   `json:"serviceRollout,omitempty"`
 	Endpoint       string   `json:"endpoint"`
 	Config         string   `json:"config"`
+	IngressIP      string   `json:"ingressIP"`
 	JWTAudiences   []string `json:"jwtAudiences"`
 }
 

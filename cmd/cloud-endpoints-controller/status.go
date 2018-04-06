@@ -38,6 +38,10 @@ func makeStatus(parent *CloudEndpoint, children *CloudEndpointControllerRequestC
 		status.ServiceRollout = parent.Status.ServiceRollout
 	}
 
+	if parent.Status.IngressIP != "" && changed == false {
+		status.IngressIP = parent.Status.IngressIP
+	}
+
 	if parent.Status.JWTAudiences != nil && changed == false {
 		status.JWTAudiences = parent.Status.JWTAudiences
 	}

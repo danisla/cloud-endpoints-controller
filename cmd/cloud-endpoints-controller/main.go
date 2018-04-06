@@ -185,6 +185,7 @@ func sync(parent *CloudEndpoint, children *CloudEndpointControllerRequestChildre
 				return status, &desiredChildren, err
 			}
 			log.Printf("[INFO][%s] Target: %s", parent.Name, target)
+			status.IngressIP = target
 		} else {
 			// Use provided spec.
 			specYaml, err := yaml.Marshal(&parent.Spec.OpenAPISpec)
@@ -319,11 +320,25 @@ func sync(parent *CloudEndpoint, children *CloudEndpointControllerRequestChildre
 func changeDetected(parent *CloudEndpoint, children *CloudEndpointControllerRequestChildren, status *CloudEndpointControllerStatus) bool {
 	changed := false
 
-	// Mark changed if parent spec changes
 	if status.StateCurrent == StateIdle {
+
+		// Changed if parent spec changes
 		if status.LastAppliedSig != calcParentSig(parent, "") {
 			log.Printf("[DEBUG][%s] Changed because parent sig different", parent.Name)
 			changed = true
+		}
+
+		// Changed if using target ingress and ingress IP changes.
+		if parent.Spec.TargetIngress.Name != "" {
+			// Fetch the ingress
+			ingress, err := config.clientset.ExtensionsV1beta1().Ingresses(parent.Spec.TargetIngress.Namespace).Get(parent.Spec.TargetIngress.Name, metav1.GetOptions{})
+			if err == nil {
+				// Compare ingress IP with configured IP
+				if len(ingress.Status.LoadBalancer.Ingress) > 0 && ingress.Status.LoadBalancer.Ingress[0].IP != status.IngressIP {
+					log.Printf("[DEBUG][%s] Changed because ingress target IP changed", parent.Name)
+					changed = true
+				}
+			}
 		}
 	}
 
