@@ -56,7 +56,14 @@ upgrade-chart:
 	helm upgrade $(APP) .)
 
 deps: dev-cp
-	@echo "Installing go deps with dep..." && kubectl exec -n $(NS) -c godev -it $(call get_pod) -- bash -c 'cd /go/src/$(GODEV_PATH) && dep ensure'
+	@echo "Installing go deps with dep..." && kubectl exec -n $(NS) -c godev -it $(call get_pod) -- bash -c 'cd /go/src/$(GODEV_PATH) && dep ensure -v'
+
+deps-rebuild: dev-cp
+	@POD=$(call get_pod) && echo "Rebuilding Gopkg.toml and Gopkg.lock..." && \
+	  kubectl exec -n $(NS) -c godev -it $${POD} -- bash -c 'cd /go/src/$(GODEV_PATH) && rm -Rf Gopkg.toml Gopkg.lock /go/pkg/dep/sources && dep init -v && dep ensure -v' && \
+	  echo "Copying $${POD}:/go/src/$(GODEV_PATH)/{Gopkg.toml,Gopkg.lock} to ./" && \
+	  kubectl cp -n $(NS) -c godev $${POD}:/go/src/$(GODEV_PATH)/Gopkg.toml ./ && \
+	  kubectl cp -n $(NS) -c godev $${POD}:/go/src/$(GODEV_PATH)/Gopkg.lock ./
 
 $(CHART_DIR)/%:
 	$(error prerequisite file not found: $@)
@@ -68,7 +75,7 @@ dev-cp:
 	$(eval TMP_DIR := /tmp/$(notdir $(shell mktemp -d)))
 	@POD=$(call get_pod) && echo "Copying ./ to $${POD}:/go/src/$(GODEV_PATH)/" && kubectl cp -n $(NS) -c godev ./ $${POD}:$(TMP_DIR) && \
 	kubectl exec -n $(NS) -c godev -it $${POD} -- bash -c 'mkdir -p /go/src/$(GODEV_PATH) && rsync -ra $(TMP_DIR)/ /go/src/$(GODEV_PATH)/ && rm -rf $(TMP_DIR)'
-
+	
 build: dev-cp
 	@echo "Building $(GODEV_BUILD_SUBDIR)..." && kubectl exec -n $(NS) -c godev -it $(call get_pod) -- bash -c 'cd /go/src/$(GODEV_PATH) && go install $(GODEV_BUILD_SUBDIR)'
 
