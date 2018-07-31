@@ -50,9 +50,67 @@ helm install --name metacontroller --namespace metacontroller charts/kube-metaco
 helm install --name cloud-endpoints-controller --namespace=metacontroller charts/cloud-endpoints-controller
 ```
 
-## Usage
+## Examples
 
-1. Create a CloudEndpoint resouces like the example below:
+### Simple IP target
+
+```sh
+PROJECT=$(gcloud config get-value project)
+IP_ADDRESS=1.2.3.4
+
+cat > target-ip-cloudep.yaml <<EOF
+apiVersion: ctl.isla.solutions/v1
+kind: CloudEndpoint
+metadata:
+  name: target-ip
+spec:
+  project: ${PROJECT}
+  target: ${IP_ADDRESS}
+EOF
+
+kubectl apply -f target-ip-cloudep.yaml
+```
+
+Example kubectl commands:
+
+```sh
+kubectl get cloudep
+
+kubectl describe cloudep target-ip
+
+kubectl delete cloudep target-ip
+```
+
+### Bind to Ingress
+
+```sh
+PROJECT=$(gcloud config get-value project)
+INGRESS_NAME=nginx-ingress
+
+cat > ingress-cloudep.yaml <<EOF
+apiVersion: ctl.isla.solutions/v1
+kind: CloudEndpoint
+metadata:
+  name: ingress
+spec:
+  project: ${PROJECT}
+  targetIngress:
+    name: ${INGRESS_NAME}
+    namespace: default
+    jwtServices:
+    - service3
+EOF
+
+kubectl apply -f ingress-cloudep.yaml
+```
+
+> The Cloud Endpoint service will be kept in sync with the ingress. If the ingress external IP or backend service changes, a new version of the Endpoint service will be rolled out.
+
+> The `targetIngress.jwtServices` array specifies services in the ingress that will be monitored to populate the `x-google-audiences` field in the OpenAPI spec.
+
+### Full OpenAPI Spec
+
+1. Create a CloudEndpoint resource like the example below:
 
 ```sh
 PROJECT=$(gcloud config get-value project)
@@ -132,13 +190,4 @@ spec:
 EOF
 
 kubectl apply -f service1-cloudep.yaml
-```
-Example kubectl commands:
-
-```
-  kubectl get cloudep
-
-  kubectl describe cloudep service1
-
-  kubectl delete cloudep service1
 ```
