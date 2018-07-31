@@ -26,11 +26,17 @@ gcloud container clusters create dev \
   --zone ${ZONE}
 ```
 
-2. [Install Helm](https://github.com/kubernetes/helm/blob/master/docs/install.md#installing-the-helm-client)
+2. Install Helm:
+
+```sh
+curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get > get_helm.sh
+chmod 700 get_helm.sh
+./get_helm.sh
+```
 
 3. Initialize Helm
 
-```
+```sh
 kubectl create serviceaccount tiller --namespace kube-system
 kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
 helm init --service-account=tiller
@@ -38,7 +44,7 @@ helm init --service-account=tiller
 
 4. Install kube-metacontroller:
 
-```
+```sh
 helm install --name metacontroller --namespace metacontroller charts/kube-metacontroller
 ```
 
