@@ -56,7 +56,7 @@ helm install --name cloud-endpoints-controller --namespace=metacontroller charts
 
 ```sh
 PROJECT=$(gcloud config get-value project)
-TARGET_IP=0.0.0.0
+TARGET_IP=1.2.3.4
 
 cat > service1-cloudep.yaml <<EOF
 apiVersion: ctl.isla.solutions/v1
