@@ -157,13 +157,13 @@ EOF
 
 1. Set up your OAuth consent screen:
 
-  a. [Configure the consent screen](https://console.cloud.google.com/apis/credentials/consent)
+    a. [Configure the consent screen](https://console.cloud.google.com/apis/credentials/consent)
   
-  b. Under Email address, select the address that you want to display as a public contact. You must use either your email address or a Google Group that you own.
+    b. Under Email address, select the address that you want to display as a public contact. You must use either your email address or a Google Group that you own.
   
-  c. In the Product name box, enter IAP Tutorial.
+    c. In the Product name box, enter IAP Tutorial.
   
-  d. Click Save.
+    d. Click Save.
 
 2. Click Create credentials, and then click OAuth client ID.
 
