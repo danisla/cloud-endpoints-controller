@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: iap-tutorial
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: iap-tutorial
+  type: NodePort
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: iap-tutorial
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: iap-tutorial
+    spec:
+      containers:
+      - name: esp
+        image: gcr.io/endpoints-release/endpoints-runtime:1
+        command: [
+          "/usr/sbin/start_esp",
+          "-p",
+          "8080",
+          "-z",
+          "healthz",
+          "-a",
+          "127.0.0.1:8081",
+          "-s",
+          "${ENDPOINT_URL}",
+          "-v",
+          "${SERVICE_VERSION}"
+        ]
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        ports:
+        - containerPort: 8080
+      - name: app
+        image: gcr.io/cloud-solutions-group/esp-sample-app:1.0.0
+        env:
+        - name: PORT
+          value: "8081"
+        ports:
+        - containerPort: 8081
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+            scheme: HTTP
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 2

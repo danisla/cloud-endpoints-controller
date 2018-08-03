@@ -7,17 +7,16 @@ This example shows how to use the Cloud Endpoints Controller with IAP and an L7 
 ## Task 0 - Create GKE Cluster
 
 ```
-VERSION=$(gcloud container get-server-config --zone us-central1-f --format='value(validMasterVersions[0])')
-gcloud container clusters create dev --zone=us-central1-f --cluster-version=${VERSION} --scopes=cloud-platform
+VERSION=$(gcloud container get-server-config --zone us-central1-c --format='value(validMasterVersions[0])')
+gcloud container clusters create dev --zone=us-central1-c --cluster-version=${VERSION} --scopes=cloud-platform
 ```
 
 ## Task 1 - Deploy Sample App
 
-1. Run example app and expose as a `NodePort` service:
+1. Deploy the sample ESP proxy app:
 
 ```
-kubectl run nginx --image nginx:latest --port 80
-kubectl expose deploy nginx --port 80 --type NodePort
+kubectl apply -f iap-tutorial-app.yaml
 ```
 
 ## Task 2 - Install Helm
@@ -72,14 +71,14 @@ cat <<EOF | kubectl apply -f -
 apiVersion: ctl.isla.solutions/v1
 kind: CloudEndpoint
 metadata:
-  name: nginx
+  name: iap-tutorial
 spec:
   project: ${PROJECT}
   targetIngress:
-    name: nginx-ingress
+    name: iap-tutorial-ingress
     namespace: default
     jwtServices:
-    - nginx
+    - iap-tutorial
 EOF
 ```
 
@@ -95,7 +94,7 @@ helm install --name cert-manager --namespace kube-system stable/cert-manager
 
 ```
 PROJECT=$(gcloud config get-value project)
-COMMON_NAME="nginx.endpoints.${PROJECT}.cloud.goog"
+COMMON_NAME="iap-tutorial.endpoints.${PROJECT}.cloud.goog"
 
 openssl genrsa -out ca.key 2048
 openssl req -x509 -new -nodes -key ca.key -subj "/CN=${COMMON_NAME}" -days 3650 -reqexts v3_req -extensions v3_ca -out ca.crt
@@ -121,15 +120,15 @@ EOF
 
 ```
 PROJECT=$(gcloud config get-value project)
-COMMON_NAME="nginx.endpoints.${PROJECT}.cloud.goog"
+COMMON_NAME="iap-tutorial.endpoints.${PROJECT}.cloud.goog"
 
 cat <<EOF | kubectl apply -f -
 apiVersion: certmanager.k8s.io/v1alpha1
 kind: Certificate
 metadata:
-  name: nginx-ingress
+  name: iap-tutorial-ingress
 spec:
-  secretName: nginx-ingress-tls
+  secretName: iap-tutorial-ingress-tls
   issuerRef:
     name: ca-issuer
     # We can reference ClusterIssuers by changing the kind here.
@@ -151,7 +150,7 @@ EOF
 
 2. Click Create credentials, and then click OAuth client ID.
 
-3. Under Application type, select Web application. In the Name box, enter IAP Tutorial, and in the Authorized redirect URIs box, enter `https://nginx.endpoints.PROJECT_ID.cloud.goog/_gcp_gatekeeper/authenticate`, replacing `PROJECT_ID` with the ID of your project. 
+3. Under Application type, select Web application. In the Name box, enter IAP Tutorial, and in the Authorized redirect URIs box, enter `https://iap-tutorial.endpoints.PROJECT_ID.cloud.goog/_gcp_gatekeeper/authenticate`, replacing `PROJECT_ID` with the ID of your project. 
 
 4. After you enter the details, click Create. Make note of the client ID and client secret that appear in the OAuth client window.
 5. In Cloud Shell, create a Kubernetes secret with your OAuth credentials:
@@ -174,7 +173,7 @@ cat <<EOF | kubectl apply -f -
 apiVersion: cloud.google.com/v1beta1
 kind: BackendConfig
 metadata:
-  name: nginx-http
+  name: config-iap
 spec:
   iap:
     enabled: true
@@ -186,8 +185,8 @@ EOF
 2. Annotate the example app service to use the BackendConfig:
 
 ```
-kubectl annotate svc/nginx --overwrite \
-  beta.cloud.google.com/backend-config='{"default": "nginx-http"}'
+kubectl annotate svc/iap-tutorial --overwrite \
+  beta.cloud.google.com/backend-config='{"ports": {"http":"config-iap"}, "default": "config-iap"}'
 ```
 
 ## Task 8 - Create Ingress
@@ -196,26 +195,26 @@ kubectl annotate svc/nginx --overwrite \
 
 ```
 PROJECT=$(gcloud config get-value project)
-COMMON_NAME="nginx.endpoints.${PROJECT}.cloud.goog"
+COMMON_NAME="iap-tutorial.endpoints.${PROJECT}.cloud.goog"
 
 cat <<EOF | kubectl apply -f -
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: nginx-ingress
+  name: iap-tutorial-ingress
   annotations:
     kubernetes.io/ingress.class: "gce"
     ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   tls:
-  - secretName: nginx-ingress-tls
+  - secretName: iap-tutorial-ingress-tls
   rules:
   - host: ${COMMON_NAME}
     http:
       paths:
       - path: /
         backend:
-          serviceName: nginx
+          serviceName: iap-tutorial
           servicePort: 80
 EOF
 ```
@@ -224,7 +223,7 @@ EOF
 
 ```
 PROJECT=$(gcloud config get-value project)
-COMMON_NAME="nginx.endpoints.${PROJECT}.cloud.goog"
+COMMON_NAME="iap-tutorial.endpoints.${PROJECT}.cloud.goog"
 
 (until curl -sfk https://${COMMON_NAME}; do echo "Waiting for IAP enabled LB..."; sleep 2; done)
 ```
