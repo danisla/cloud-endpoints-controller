@@ -6,6 +6,12 @@ This example shows how to use the Cloud Endpoints Controller with IAP and an L7 
 
 ## Task 0 - Create GKE Cluster
 
+Set the project, replace `YOUR_PROJECT` with your project ID:
+
+```
+gcloud config set project YOUR_PROJECT
+```
+
 ```
 VERSION=$(gcloud container get-server-config --zone us-central1-c --format='value(validMasterVersions[0])')
 gcloud container clusters create dev --zone=us-central1-c --cluster-version=${VERSION} --scopes=cloud-platform
@@ -13,10 +19,11 @@ gcloud container clusters create dev --zone=us-central1-c --cluster-version=${VE
 
 ## Task 1 - Deploy Sample App
 
-1. Deploy the sample ESP proxy app:
+1. Deploy the sample app:
 
 ```
-kubectl apply -f iap-tutorial-app.yaml
+kubectl run nginx --image nginx:latest --port 80
+kubectl expose deploy nginx --port 80 --type ClusterIP
 ```
 
 ## Task 2 - Install Helm
@@ -78,16 +85,16 @@ spec:
     name: iap-tutorial-ingress
     namespace: default
     jwtServices:
-    - iap-tutorial
+    - iap-tutorial-esp
 EOF
 ```
 
 ## Task 5 - Generate self-signed certificate with cert-manager
 
-1. Install the cert-manager chart:
+1. Install the cert-manager chart and clusterissuer using the bash helper:
 
 ```
-helm install --name cert-manager --namespace kube-system stable/cert-manager
+helm-install-cert-manager
 ```
 
 3. Generate CA key and cert:
@@ -140,6 +147,12 @@ spec:
 EOF
 ```
 
+4. Wait for the certificate:
+
+```
+(until kubectl get secret iap-tutorial-ingress-tls 2>/dev/null; do echo "Waiting for certificate..." ; sleep 2; done)
+```
+
 ## Task 6 - Generate OAuth Client Credentials
 
 1. Set up your OAuth consent screen:
@@ -182,14 +195,82 @@ spec:
 EOF
 ```
 
-2. Annotate the example app service to use the BackendConfig:
+## Task 8 - Deploy Extensible Service Proxy
 
 ```
-kubectl annotate svc/iap-tutorial --overwrite \
-  beta.cloud.google.com/backend-config='{"ports": {"http":"config-iap"}, "default": "config-iap"}'
+PROJECT=$(gcloud config get-value project)
+ENDPOINT_URL="iap-tutorial.endpoints.${PROJECT}.cloud.goog"
+UPSTREAM_SVC="nginx.default.svc.cluster.local"
+SERVICE_VERSION=$(kubectl get cloudep iap-tutorial -o jsonpath='{.status.config}')
+
+cat <<EOF | kubectl apply -f -
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: iap-tutorial-esp
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: iap-tutorial-esp
+    spec:
+      containers:
+      - name: esp
+        image: gcr.io/endpoints-release/endpoints-runtime:1
+        command: [
+          "/usr/sbin/start_esp",
+          "-p",
+          "8080",
+          "-z",
+          "healthz",
+          "-a",
+          "${UPSTREAM_SVC}",
+          "-s",
+          "${ENDPOINT_URL}",
+          "-v",
+          "${SERVICE_VERSION}"
+        ]
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        ports:
+        - containerPort: 8080
+EOF
 ```
 
-## Task 8 - Create Ingress
+> NOTE: in this example, the `SERVICE_VERSION` is hard coded into the ESP deployment. If ingress backend service changes, the ESP pod will break because the JWT audience will no longer match.
+
+2. Create service for ESP:
+
+```
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Service
+metadata:
+  name: iap-tutorial-esp
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    app: iap-tutorial-esp
+  type: NodePort
+EOF
+```
+
+3. Annotate the esp service to use the BackendConfig:
+
+```
+kubectl annotate svc/iap-tutorial-esp --overwrite \
+  beta.cloud.google.com/backend-config='{"ports": {"http":"config-iap"}}'
+```
+
+
+## Task 9 - Create Ingress
 
 1. Create ingress for example app with self-signed TLS certificate:
 
@@ -212,10 +293,10 @@ spec:
   - host: ${COMMON_NAME}
     http:
       paths:
-      - path: /
+      - path: /*
         backend:
-          serviceName: iap-tutorial
-          servicePort: 80
+          serviceName: iap-tutorial-esp
+          servicePort: 8080
 EOF
 ```
 
@@ -225,12 +306,12 @@ EOF
 PROJECT=$(gcloud config get-value project)
 COMMON_NAME="iap-tutorial.endpoints.${PROJECT}.cloud.goog"
 
-(until curl -sfk https://${COMMON_NAME}; do echo "Waiting for IAP enabled LB..."; sleep 2; done)
+(until [[ $(curl -sfk -w "%{http_code}" https://${COMMON_NAME}) == "302" ]]; do echo "Waiting for LB with IAP..."; sleep 2; done)
 ```
 
 > NOTE: It may take 10-15 minutes for the load balancer to be provisioned.
 
-## Task 9 - Add authorized users
+## Task 10 - Add authorized users
 
 1. Grant your account user access to IAP:
 
@@ -244,3 +325,23 @@ gcloud projects add-iam-policy-binding ${PROJECT} \
 ```
 
 > Repeat step to authorize additional users.
+
+## Task 11 - Cleanup
+
+1. Delete the ingress:
+
+```
+kubectl delete ing iap-tutorial-ingress
+```
+
+> This will trigger the load balancer cleanup. Wait a few moments before continuing.
+
+```
+sleep 90
+```
+
+2. Delete the GKE cluster:
+
+```
+gcloud container clusters delete dev --zone us-central1-c
+```
