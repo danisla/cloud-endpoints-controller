@@ -201,7 +201,7 @@ EOF
 PROJECT=$(gcloud config get-value project)
 ENDPOINT_URL="iap-tutorial.endpoints.${PROJECT}.cloud.goog"
 UPSTREAM_SVC="nginx.default.svc.cluster.local"
-SERVICE_VERSION=$(kubectl get cloudep iap-tutorial -o jsonpath='{.status.config}')
+SERVICE_VERSION="" ; until test -n "$SERVICE_VERSION" ; do SERVICE_VERSION=$(kubectl get cloudep iap-tutorial -o jsonpath='{.status.config}'); echo "Waiting for Cloud Endpoint rollout..." ; sleep 2; done
 
 cat <<EOF | kubectl apply -f -
 apiVersion: extensions/v1beta1
