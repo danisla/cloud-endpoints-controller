@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: {{ .Values.endpointServiceName }}-esp
   annotations:
-    beta.cloud.google.com/backend-config: '{"ports": {"http":"{{ template "iap-ingress.fullname" . }}"}}'
+    beta.cloud.google.com/backend-config: '{"ports": {"http":"{{ .Values.endpointServiceName }}-iap"}}'
   labels:
     app: {{ template "iap-ingress.name" . }}
     chart: {{ template "iap-ingress.chart" . }}
