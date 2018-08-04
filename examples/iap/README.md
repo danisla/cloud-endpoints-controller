@@ -207,10 +207,10 @@ gcloud projects add-iam-policy-binding ${PROJECT} \
 
 ## Task 8 - Cleanup
 
-1. Delete the ingress:
+1. Delete the chart:
 
 ```
-kubectl delete ing iap-tutorial-ingress
+helm delete --purge iap-tutorial-ingress
 ```
 
 > This will trigger the load balancer cleanup. Wait a few moments before continuing.
