@@ -1,4 +1,4 @@
-# Cloud Endpoints and IAP Example
+# Cloud Endpoints and IAP Example with ESP
 
 This example shows how to use the Cloud Endpoints Controller with IAP and an L7 Ingress Load Balancer.
 
@@ -51,8 +51,8 @@ kubectl plugin install-cloud-endpoints-controller
 1. Deploy the target app that you will proxy with IAP:
 
 ```
-kubectl run nginx --image nginx:latest --port 80
-kubectl expose deploy nginx --port 80 --type ClusterIP
+kubectl run sample-app --image gcr.io/cloud-solutions-group/esp-sample-app:1.0.0 --port 8080
+kubectl expose deploy sample-app --type ClusterIP
 ```
 
 ## Task 3 - Generate self-signed certificate with cert-manager
@@ -169,7 +169,7 @@ kubectl create secret generic iap-oauth --from-literal=client_id=${CLIENT_ID} --
 cat > values.yaml <<EOF
 projectID: $(gcloud config get-value project)
 endpointServiceName: iap-tutorial
-targetServiceName: nginx
+targetServiceName: sample-app
 oauthSecretName: iap-oauth
 tlsSecretName: iap-tutorial-ingress-tls
 EOF
