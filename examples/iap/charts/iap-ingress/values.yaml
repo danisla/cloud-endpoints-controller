@@ -1,0 +1,26 @@
+# Default values for iap-ingress.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Name of the secret containing the oauth credential keys:
+#   client_id
+#   client_secret
+oauthSecretName:
+
+# Name of secret containing TLS certificate for ingress.
+tlsSecretName:
+
+# Name of the Cloud Endpoints service, this will generate a DNS record in the form of:
+#   NAME.endpoints.PROJECT_ID.cloud.goog
+endpointServiceName:
+
+# Name of the upstream service for the Extensible Service Proxy to route to.
+targetServiceName:
+
+# Name of the project ID for the Cloud Endpoints service
+projectID:
+
+ingress:
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "true"
+  path: /*

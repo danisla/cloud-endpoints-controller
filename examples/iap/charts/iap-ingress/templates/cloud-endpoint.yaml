@@ -1,0 +1,16 @@
+apiVersion: ctl.isla.solutions/v1
+kind: CloudEndpoint
+metadata:
+  name: {{ .Values.endpointServiceName }}
+  labels:
+    app: {{ template "iap-ingress.name" . }}
+    chart: {{ template "iap-ingress.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  project: {{ .Values.projectID }}
+  targetIngress:
+    name: {{ .Values.endpointServiceName }}-ingress
+    namespace: {{ .Release.Namespace }}
+    jwtServices:
+    - {{ .Values.endpointServiceName }}-esp

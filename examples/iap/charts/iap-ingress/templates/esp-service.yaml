@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.endpointServiceName }}-esp
+  annotations:
+    beta.cloud.google.com/backend-config: '{"ports": {"http":"{{ template "iap-ingress.fullname" . }}"}}'
+  labels:
+    app: {{ template "iap-ingress.name" . }}
+    chart: {{ template "iap-ingress.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    app: {{ .Values.endpointServiceName }}-esp
+  type: NodePort

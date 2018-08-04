@@ -67,29 +67,7 @@ source ~/.kubefunc.bash
 helm-install-cloud-endpoints-controller
 ```
 
-## Task 4 - Create Cloud Endpoint for example app
-
-1. Create a new CloudEndpoint resource bound to an ingress that you will create later:
-
-```
-PROJECT=$(gcloud config get-value project)
-
-cat <<EOF | kubectl apply -f -
-apiVersion: ctl.isla.solutions/v1
-kind: CloudEndpoint
-metadata:
-  name: iap-tutorial
-spec:
-  project: ${PROJECT}
-  targetIngress:
-    name: iap-tutorial-ingress
-    namespace: default
-    jwtServices:
-    - iap-tutorial-esp
-EOF
-```
-
-## Task 5 - Generate self-signed certificate with cert-manager
+## Task 4 - Generate self-signed certificate with cert-manager
 
 1. Install the cert-manager chart and clusterissuer using the bash helper:
 
@@ -153,7 +131,7 @@ EOF
 (until kubectl get secret iap-tutorial-ingress-tls 2>/dev/null; do echo "Waiting for certificate..." ; sleep 2; done)
 ```
 
-## Task 6 - Generate OAuth Client Credentials
+## Task 5 - Generate OAuth Client Credentials
 
 1. Set up your OAuth consent screen:
 
@@ -181,130 +159,27 @@ CLIENT_SECRET=YOUR_CLIENT_SECRET
 kubectl create secret generic iap-oauth --from-literal=client_id=${CLIENT_ID} --from-literal=client_secret=${CLIENT_SECRET}
 ```
 
-## Task 7 - Create BackendConfig for service
+## Task 6 - Deploy iap-ingress chart
 
-1. Create backend config that enables IAP with OAuth credentials:
+1. Create values file for chart:
 
 ```
-cat <<EOF | kubectl apply -f -
-apiVersion: cloud.google.com/v1beta1
-kind: BackendConfig
-metadata:
-  name: config-iap
-spec:
-  iap:
-    enabled: true
-    oauthclientCredentials:
-      secretName: iap-oauth
+cat > values.yaml <<EOF
+projectID: $(gcloud config get-value project)
+endpointServiceName: iap-tutorial
+targetServiceName: nginx
+oauthSecretName: iap-oauth
+tlsSecretName: iap-tutorial-ingress-tls
 EOF
 ```
 
-## Task 8 - Deploy Extensible Service Proxy
+2. Deploy chart to create IAP aware ingress resource:
 
 ```
-PROJECT=$(gcloud config get-value project)
-ENDPOINT_URL="iap-tutorial.endpoints.${PROJECT}.cloud.goog"
-UPSTREAM_SVC="nginx.default.svc.cluster.local"
-SERVICE_VERSION="" ; until test -n "$SERVICE_VERSION" ; do SERVICE_VERSION=$(kubectl get cloudep iap-tutorial -o jsonpath='{.status.config}'); echo "Waiting for Cloud Endpoint rollout..." ; sleep 2; done
-
-cat <<EOF | kubectl apply -f -
-apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-  name: iap-tutorial-esp
-spec:
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: iap-tutorial-esp
-    spec:
-      containers:
-      - name: esp
-        image: gcr.io/endpoints-release/endpoints-runtime:1
-        command: [
-          "/usr/sbin/start_esp",
-          "-p",
-          "8080",
-          "-z",
-          "healthz",
-          "-a",
-          "${UPSTREAM_SVC}",
-          "-s",
-          "${ENDPOINT_URL}",
-          "-v",
-          "${SERVICE_VERSION}"
-        ]
-        readinessProbe:
-          httpGet:
-            path: /healthz
-            port: 8080
-        ports:
-        - containerPort: 8080
-EOF
+helm install --name iap-tutorial-ingress charts/iap-ingress -f values.yaml
 ```
 
-> NOTE: in this example, the `SERVICE_VERSION` is hard coded into the ESP deployment. If ingress backend service changes, the ESP pod will break because the JWT audience will no longer match.
-
-2. Create service for ESP:
-
-```
-cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: Service
-metadata:
-  name: iap-tutorial-esp
-spec:
-  ports:
-  - name: http
-    port: 8080
-    targetPort: 8080
-    protocol: TCP
-  selector:
-    app: iap-tutorial-esp
-  type: NodePort
-EOF
-```
-
-3. Annotate the esp service to use the BackendConfig:
-
-```
-kubectl annotate svc/iap-tutorial-esp --overwrite \
-  beta.cloud.google.com/backend-config='{"ports": {"http":"config-iap"}}'
-```
-
-
-## Task 9 - Create Ingress
-
-1. Create ingress for example app with self-signed TLS certificate:
-
-```
-PROJECT=$(gcloud config get-value project)
-COMMON_NAME="iap-tutorial.endpoints.${PROJECT}.cloud.goog"
-
-cat <<EOF | kubectl apply -f -
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: iap-tutorial-ingress
-  annotations:
-    kubernetes.io/ingress.class: "gce"
-    ingress.kubernetes.io/ssl-redirect: "true"
-spec:
-  tls:
-  - secretName: iap-tutorial-ingress-tls
-  rules:
-  - host: ${COMMON_NAME}
-    http:
-      paths:
-      - path: /*
-        backend:
-          serviceName: iap-tutorial-esp
-          servicePort: 8080
-EOF
-```
-
-2. Wait for the load balancer to be provisioned:
+3. Wait for the load balancer to be provisioned:
 
 ```
 PROJECT=$(gcloud config get-value project)
@@ -315,7 +190,7 @@ COMMON_NAME="iap-tutorial.endpoints.${PROJECT}.cloud.goog"
 
 > NOTE: It may take 10-15 minutes for the load balancer to be provisioned.
 
-## Task 10 - Add authorized users
+## Task 7 - Add authorized users
 
 1. Grant your account user access to IAP:
 
@@ -330,7 +205,7 @@ gcloud projects add-iam-policy-binding ${PROJECT} \
 
 > Repeat step to authorize additional users.
 
-## Task 11 - Cleanup
+## Task 8 - Cleanup
 
 1. Delete the ingress:
 
@@ -339,10 +214,6 @@ kubectl delete ing iap-tutorial-ingress
 ```
 
 > This will trigger the load balancer cleanup. Wait a few moments before continuing.
-
-```
-sleep 90
-```
 
 2. Delete the GKE cluster:
 

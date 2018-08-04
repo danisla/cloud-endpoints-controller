@@ -1,0 +1,67 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ .Values.endpointServiceName }}-esp
+  labels:
+    app: {{ template "iap-ingress.name" . }}
+    chart: {{ template "iap-ingress.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.endpointServiceName }}-esp
+    spec:
+      serviceAccountName: {{ .Values.endpointServiceName }}-esp
+      initContainers:
+      - name: init
+        image: google/cloud-sdk:alpine
+        command:
+          - "/bin/bash"
+          - -exc
+          - |
+            # Install kubectl
+            K8S_VERSION=v1.11.0
+            curl -sfSL https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/amd64/kubectl > /usr/local/bin/kubectl
+            chmod +x /usr/local/bin/kubectl
+            SERVICE_VERSION=""
+            until [[ -n "${SERVICE_VERSION}" ]]; do
+              echo "Waiting for Cloud Endpoint rollout..."
+              SERVICE_VERSION=$(kubectl get cloudep {{ .Values.endpointServiceName }} -o jsonpath='{.status.config}')
+              sleep 2
+            done
+            echo "${SERVICE_VERSION}" > /var/run/esp-shared/SERVICE_VERSION
+        volumeMounts:
+        - name: shared
+          mountPath: /var/run/esp-shared
+      containers:
+      - name: esp
+        image: gcr.io/endpoints-release/endpoints-runtime:1
+        command:
+        - /bin/bash
+        - -exc
+        - |
+          [[ ! -f /var/run/esp-shared/SERVICE_VERSION ]] && echo "ERROR: /var/run/esp-shared/SERVICE_VERSION not found" && exit 1
+          export SERVICE_VERSION=$(cat /var/run/esp-shared/SERVICE_VERSION)
+
+          /usr/sbin/start_esp \
+            -p 8080 \
+            -z healthz \
+            -a {{ .Values.targetServiceName }} \
+            -s {{ .Values.endpointServiceName }}.endpoints.{{ .Values.projectID }}.cloud.goog
+            -v ${SERVICE_VERSION}
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: shared
+          mountPath: /var/run/esp-shared
+      volumes:
+      - name: shared
+        emptyDir:
+          medium: Memory
