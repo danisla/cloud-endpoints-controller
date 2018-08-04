@@ -46,5 +46,9 @@ func makeStatus(parent *CloudEndpoint, children *CloudEndpointControllerRequestC
 		status.JWTAudiences = parent.Status.JWTAudiences
 	}
 
+	if parent.Status.ConfigMapHash != "" && changed == false {
+		status.ConfigMapHash = parent.Status.ConfigMapHash
+	}
+
 	return &status
 }
