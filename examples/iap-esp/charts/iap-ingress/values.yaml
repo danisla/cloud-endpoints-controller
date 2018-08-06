@@ -14,8 +14,11 @@ tlsSecretName:
 #   NAME.endpoints.PROJECT_ID.cloud.goog
 endpointServiceName:
 
-# Name of the upstream service for the Extensible Service Proxy to route to.
+# Name of the upstream service to route to.
 targetServiceName:
+
+# Port number of upstream service
+targetServicePort: 80
 
 # Name of the project ID for the Cloud Endpoints service
 projectID:

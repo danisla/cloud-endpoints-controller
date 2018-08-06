@@ -49,7 +49,7 @@ spec:
           /usr/sbin/start_esp \
             -p 8080 \
             -z healthz \
-            -a {{ .Values.targetServiceName }} \
+            -a {{ .Values.targetServiceName }}:{{ .Values.targetServicePort }} \
             -s {{ .Values.endpointServiceName }}.endpoints.{{ .Values.projectID }}.cloud.goog
             -v ${SERVICE_VERSION}
         readinessProbe:

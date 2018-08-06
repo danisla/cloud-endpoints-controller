@@ -170,6 +170,7 @@ cat > values.yaml <<EOF
 projectID: $(gcloud config get-value project)
 endpointServiceName: iap-tutorial
 targetServiceName: sample-app
+targetServicePort: 8080
 oauthSecretName: iap-oauth
 tlsSecretName: iap-tutorial-ingress-tls
 esp:
