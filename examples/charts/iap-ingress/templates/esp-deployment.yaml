@@ -1,7 +1,8 @@
+{{- if .Values.esp.enabled -}}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: {{ .Values.endpointServiceName }}-esp
+  name: {{ .Values.endpointServiceName }}-proxy
   labels:
     app: {{ template "iap-ingress.name" . }}
     chart: {{ template "iap-ingress.chart" . }}
@@ -12,9 +13,9 @@ spec:
   template:
     metadata:
       labels:
-        app: {{ .Values.endpointServiceName }}-esp
+        app: {{ .Values.endpointServiceName }}-proxy
     spec:
-      serviceAccountName: {{ .Values.endpointServiceName }}-esp
+      serviceAccountName: {{ .Values.endpointServiceName }}-proxy
       initContainers:
       - name: init
         image: google/cloud-sdk:alpine
@@ -34,10 +35,10 @@ spec:
               STATE=$(kubectl get cloudep {{ .Values.endpointServiceName }} -o jsonpath='{.status.stateCurrent}')
               sleep 2
             done
-            echo "${SERVICE_VERSION}" > /var/run/esp-shared/SERVICE_VERSION
+            echo "${SERVICE_VERSION}" > /var/run/proxy-shared/SERVICE_VERSION
         volumeMounts:
         - name: shared
-          mountPath: /var/run/esp-shared
+          mountPath: /var/run/proxy-shared
       containers:
       - name: esp
         image: gcr.io/endpoints-release/endpoints-runtime:1
@@ -45,8 +46,8 @@ spec:
         - /bin/bash
         - -exc
         - |
-          [[ ! -f /var/run/esp-shared/SERVICE_VERSION ]] && echo "ERROR: /var/run/esp-shared/SERVICE_VERSION not found" && exit 1
-          export SERVICE_VERSION=$(cat /var/run/esp-shared/SERVICE_VERSION)
+          [[ ! -f /var/run/proxy-shared/SERVICE_VERSION ]] && echo "ERROR: /var/run/proxy-shared/SERVICE_VERSION not found" && exit 1
+          export SERVICE_VERSION=$(cat /var/run/proxy-shared/SERVICE_VERSION)
 
           /usr/sbin/start_esp \
             -p 8080 \
@@ -62,8 +63,9 @@ spec:
         - containerPort: 8080
         volumeMounts:
         - name: shared
-          mountPath: /var/run/esp-shared
+          mountPath: /var/run/proxy-shared
       volumes:
       - name: shared
         emptyDir:
           medium: Memory
+{{- end }}

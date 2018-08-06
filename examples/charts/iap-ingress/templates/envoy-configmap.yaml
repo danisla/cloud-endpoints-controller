@@ -1,0 +1,96 @@
+{{- if .Values.envoy.enabled -}}
+{{- if not .Values.envoy.configMapName -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.endpointServiceName }}-envoy-config
+  labels:
+    app: {{ template "iap-ingress.name" . }}
+    chart: {{ template "iap-ingress.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  envoy-config.yaml: |
+    listeners:
+    - address: "tcp://0.0.0.0:8080"
+      filters:
+      - name: "http_connection_manager"
+        type: "read"
+        config:
+          codec_type: auto
+          stat_prefix: ingress
+          access_log:
+          - format: 'ACCESS [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%" %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% "%REQ(X-FORWARDED-FOR)%" "%REQ(USER-AGENT)%" "%REQ(X-REQUEST-ID)%" "%REQ(:AUTHORITY)%" "%UPSTREAM_HOST%"\n'
+            path: /dev/fd/1
+          route_config:
+            virtual_hosts:
+            - name: upstream
+              domains: ["*"]
+              routes:
+              - path: /healthz
+                prefix_rewrite: /server_info
+                timeout_ms: 10000
+                weighted_clusters:
+                  clusters:
+                  - name: cluster_healthz
+                    weight: 100.0
+              - prefix: /
+                prefix_rewrite: /
+                timeout_ms: 10000
+                use_websocket: true
+                weighted_clusters:
+                  clusters:
+                  - name: upstream_cluster
+                    weight: 100.0
+          filters:
+          - name: "jwt-auth"
+            type: "decoder"
+            config:
+              jwts:
+              - issuer: "{{ .Values.envoy.jwtIssuer }}"
+                audiences: ["{JWT_AUDIENCE}"]
+                jwks_uri: "{{ .Values.envoy.jwksURI }}"
+                jwks_uri_envoy_cluster: "jwks_cluster"
+                jwt_headers: ["{{ .Values.envoy.jwtHeaders }}"]
+              bypass_jwt:
+              - http_method: GET
+                path_exact: /healthz
+              
+          - name: "router"
+            type: "decoder"
+            config: {}
+    
+    cluster_manager:
+      clusters:
+      - name: cluster_healthz
+        connect_timeout_ms: 3000
+        type: strict_dns
+        lb_type: round_robin
+        hosts:
+        - url: "tcp://127.0.0.1:8001"
+      
+      - name: jwks_cluster
+        connect_timeout_ms: 3000
+        type: strict_dns
+        circuit_breakers:
+          default:
+            max_pending_requests: 10000
+            max_requests: 10000
+        lb_type: round_robin
+        hosts:
+        - url: "tcp://www.gstatic.com:80"
+
+      - name: upstream_cluster
+        connect_timeout_ms: 3000
+        type: strict_dns
+        lb_type: round_robin
+        hosts:
+        - url: "tcp://{{ .Values.targetServiceName }}.{{ .Release.Namespace }}:{{ .Values.targetServicePort }}"
+      
+    admin:
+      access_log_path: "/dev/null"
+      address: "tcp://0.0.0.0:8001"
+    statsd_udp_ip_address: "127.0.0.1:8025"
+    stats_flush_interval_ms: 1000
+{{- end }}
+{{- end }}

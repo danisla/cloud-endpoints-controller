@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Values.endpointServiceName }}-esp
+  name: {{ .Values.endpointServiceName }}-proxy
   annotations:
     beta.cloud.google.com/backend-config: '{"ports": {"http":"{{ .Values.endpointServiceName }}-iap"}}'
   labels:
@@ -16,5 +16,5 @@ spec:
     targetPort: 8080
     protocol: TCP
   selector:
-    app: {{ .Values.endpointServiceName }}-esp
+    app: {{ .Values.endpointServiceName }}-proxy
   type: NodePort

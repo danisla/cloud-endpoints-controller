@@ -1,0 +1,85 @@
+{{- if .Values.envoy.enabled -}}
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ .Values.endpointServiceName }}-proxy
+  labels:
+    app: {{ template "iap-ingress.name" . }}
+    chart: {{ template "iap-ingress.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.endpointServiceName }}-proxy
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/envoy-configmap.yaml") . | sha256sum | quote }}
+    spec:
+      serviceAccountName: {{ .Values.endpointServiceName }}-proxy
+      replicas: {{ .Values.envoy.replicas }}
+      initContainers:
+      - name: init
+        image: google/cloud-sdk:alpine
+        command:
+          - "/bin/bash"
+          - -exc
+          - |
+            # Install kubectl
+            K8S_VERSION=v1.11.0
+            curl -sfSL https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/amd64/kubectl > /usr/local/bin/kubectl
+            chmod +x /usr/local/bin/kubectl
+            JWT_AUDIENCE=""
+            STATE=""
+            until [[ -n "${JWT_AUDIENCE}" && "${STATE}" == "IDLE" ]]; do
+              echo "Waiting for Cloud Endpoint rollout..."
+              JWT_AUDIENCE=$(kubectl get cloudep {{ .Values.endpointServiceName }} -o jsonpath='{.status.jwtAudiences[0]}')
+              STATE=$(kubectl get cloudep {{ .Values.endpointServiceName }} -o jsonpath='{.status.stateCurrent}')
+              sleep 2
+            done
+            echo "${JWT_AUDIENCE}" > /var/run/proxy-shared/JWT_AUDIENCE
+            sed -e "s|{JWT_AUDIENCE}|${JWT_AUDIENCE}|g" /var/run/envoy-config/{{ .Values.envoy.configMapKey }} > /var/run/proxy-shared/{{ .Values.envoy.configMapKey }}
+
+            cat /var/run/proxy-shared/{{ .Values.envoy.configMapKey }}
+        volumeMounts:
+        - name: shared
+          mountPath: /var/run/proxy-shared
+        - name: envoy-config
+          mountPath: /var/run/envoy-config
+      containers:
+      - name: proxy
+        image: "{{ .Values.envoy.image.repository }}:{{ .Values.envoy.image.tag }}"
+        imagePullPolicy: {{ .Values.envoy.image.pullPolicy }}
+        command:
+        - /usr/local/bin/envoy
+        - -c
+        - /var/run/proxy-shared/{{ .Values.envoy.configMapKey }}
+        - --log-level
+        - info
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        ports:
+        - name: http
+          containerPort: 8080
+        - name: admin
+          containerPort: 8001
+        - name: stats
+          containerPort: 8025
+        volumeMounts:
+        - name: shared
+          mountPath: /var/run/proxy-shared
+      volumes:
+      - name: shared
+        emptyDir:
+          medium: Memory
+      - name: envoy-config
+        configMap:
+          {{- if .Values.envoy.configMapName }}
+          name: {{ .Values.envoy.configMapName }}
+          {{- else }}
+          name: {{ .Values.endpointServiceName }}-envoy-config 
+          {{- end }}
+{{- end }}
