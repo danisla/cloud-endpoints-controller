@@ -27,9 +27,11 @@ spec:
             curl -sfSL https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/amd64/kubectl > /usr/local/bin/kubectl
             chmod +x /usr/local/bin/kubectl
             SERVICE_VERSION=""
-            until [[ -n "${SERVICE_VERSION}" ]]; do
+            STATE=""
+            until [[ -n "${SERVICE_VERSION}" && "${STATE}" == "IDLE" ]]; do
               echo "Waiting for Cloud Endpoint rollout..."
               SERVICE_VERSION=$(kubectl get cloudep {{ .Values.endpointServiceName }} -o jsonpath='{.status.config}')
+              STATE=$(kubectl get cloudep {{ .Values.endpointServiceName }} -o jsonpath='{.status.stateCurrent}')
               sleep 2
             done
             echo "${SERVICE_VERSION}" > /var/run/esp-shared/SERVICE_VERSION
