@@ -193,6 +193,9 @@ COMMON_NAME="iap-tutorial.endpoints.${PROJECT}.cloud.goog"
 (until [[ $(curl -sfk -w "%{http_code}" https://${COMMON_NAME}) == "302" ]]; do echo "Waiting for LB with IAP..."; sleep 2; done)
 ```
 
+4. Open your browser to `https://iap-tutorial.endpoints.PROJECT_ID.cloud.goog` replacing `PROJECT_ID` with your project id.
+5. Login with your Google account and verify the the sample app is show.
+
 > NOTE: It may take 10-15 minutes for the load balancer to be provisioned.
 
 ## Task 6 - Cleanup
