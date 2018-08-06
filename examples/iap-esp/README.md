@@ -1,8 +1,12 @@
 # Cloud Endpoints and IAP Example with ESP
 
+[![button](http://gstatic.com/cloudssh/images/open-btn.png)](https://console.cloud.google.com/cloudshell/open?git_repo=https://github.com/danisla/cloud-endpoints-controller&page=editor&tutorial=examples/iap-esp/README.md)
+
 This example shows how to use the Cloud Endpoints Controller with IAP and an L7 Ingress Load Balancer.
 
-[![button](http://gstatic.com/cloudssh/images/open-btn.png)](https://console.cloud.google.com/cloudshell/open?git_repo=https://github.com/danisla/cloud-endpoints-controller&page=editor&tutorial=examples/iap-esp/README.md)
+**Figure 1.** *diagram of Google Cloud resources*
+
+![architecture diagram](./diagram.png)
 
 ## Task 0 - Setup environment
 
