@@ -172,6 +172,8 @@ endpointServiceName: iap-tutorial
 targetServiceName: sample-app
 oauthSecretName: iap-oauth
 tlsSecretName: iap-tutorial-ingress-tls
+esp:
+  enabled: true
 EOF
 ```
 
