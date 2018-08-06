@@ -147,10 +147,9 @@ EOF
 
 1. Go to the [Credentials page](https://console.cloud.google.com/apis/credentials)
 2. Click __Create Credentials > OAuth client ID__,
-3. Under __Application type__ select __Web application__, then add a __Name__ and specify __Authorized redirect URLs__ in the format of __yoururl/_gcp_gatekeeper/authenticate__. These are domains you will be able to access your IAP-enabled BackendService’s from.
+3. Under __Application type__, select Web application. In the __Name__ box, enter `IAP Tutorial`, and in the __Authorized redirect URIs__ box, enter `https://iap-tutorial.endpoints.PROJECT_ID.cloud.goog/_gcp_gatekeeper/authenticate`, replacing `PROJECT_ID` with the ID of your project. These are domains you will be able to access your IAP-enabled BackendService’s from.
 4. When you are finished, click __Create__. After your credentials are created, make note of the client ID and client secret that appear in the OAuth client window.
-5. Under __Application type__, select Web application. In the __Name__ box, enter `IAP Tutorial`, and in the __Authorized redirect URIs__ box, enter `https://iap-tutorial.endpoints.PROJECT_ID.cloud.goog/_gcp_gatekeeper/authenticate`, replacing `PROJECT_ID` with the ID of your project.
-6. In Cloud Shell, create a Kubernetes secret with your OAuth credentials:
+5. In Cloud Shell, create a Kubernetes secret with your OAuth credentials:
 
 ```
 CLIENT_ID=YOUR_CLIENT_ID
