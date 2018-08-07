@@ -30,3 +30,10 @@ Create chart name and version as used by the chart label.
 {{- define "iap-ingress.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
+
+{{/*
+Generate cloud endpoints name
+*/}}
+{{- define "iap-ingress.endpointUrl" }}
+{{- printf "%s.endpoints.%s.cloud.goog" .Values.endpointServiceName .Values.projectID  }}
+{{- end -}}

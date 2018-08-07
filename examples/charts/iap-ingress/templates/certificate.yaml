@@ -1,0 +1,27 @@
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: Certificate
+metadata:
+  name: {{ .Values.endpointServiceName }}
+  labels:
+    app: {{ template "iap-ingress.name" . }}
+    chart: {{ template "iap-ingress.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  {{- if .Values.tlsSecretName }}
+  secretName: {{ .Values.tlsSecretName }}
+  {{- else }}
+  secretName: {{ .Values.endpointServiceName }}-ingress-tls
+  {{- end }}
+  issuerRef:
+    name: {{ .Values.cert.issuer }}
+    kind: {{ .Values.cert.kind }}
+  commonName: {{ template "iap-ingress.endpointUrl" . }}
+  dnsNames:
+  - {{ template "iap-ingress.endpointUrl" . }}
+  acme:
+    config:
+    - http01:
+        ingress: {{ .Values.endpointServiceName }}-ingress
+      domains:
+      - {{ template "iap-ingress.endpointUrl" . }}

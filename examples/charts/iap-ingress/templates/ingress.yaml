@@ -12,10 +12,8 @@ metadata:
 {{ toYaml . | indent 4 }}
 {{- end }}
 spec:
-  tls:
-  - secretName: {{ .Values.tlsSecretName }}
   rules:
-  - host: "{{ .Values.endpointServiceName }}.endpoints.{{ .Values.projectID }}.cloud.goog"
+  - host: {{ template "iap-ingress.endpointUrl" . }}
     http:
       paths:
         - path: {{ .Values.ingress.path }}

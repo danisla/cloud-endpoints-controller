@@ -59,71 +59,7 @@ kubectl run sample-app --image gcr.io/cloud-solutions-group/esp-sample-app:1.0.0
 kubectl expose deploy sample-app --type ClusterIP
 ```
 
-## Task 3 - Generate self-signed certificate with cert-manager
-
-1. Install the cert-manager chart and clusterissuer using the kubectl plugin:
-
-```
-kubectl plugin install-cert-manager
-```
-
-3. Generate CA key and cert:
-
-```
-PROJECT=$(gcloud config get-value project)
-COMMON_NAME="iap-tutorial.endpoints.${PROJECT}.cloud.goog"
-
-openssl genrsa -out ca.key 2048
-openssl req -x509 -new -nodes -key ca.key -subj "/CN=${COMMON_NAME}" -days 3650 -reqexts v3_req -extensions v3_ca -out ca.crt
-
-kubectl create secret tls ca-key-pair --cert=ca.crt --key=ca.key
-```
-
-2. Install the CA issuer:
-
-```
-cat <<EOF | kubectl apply -f -
-apiVersion: certmanager.k8s.io/v1alpha1
-kind: Issuer
-metadata:
-  name: ca-issuer
-spec:
-  ca:
-    secretName: ca-key-pair
-EOF
-```
-
-3. Create the certificate:
-
-```
-PROJECT=$(gcloud config get-value project)
-COMMON_NAME="iap-tutorial.endpoints.${PROJECT}.cloud.goog"
-
-cat <<EOF | kubectl apply -f -
-apiVersion: certmanager.k8s.io/v1alpha1
-kind: Certificate
-metadata:
-  name: iap-tutorial-ingress
-spec:
-  secretName: iap-tutorial-ingress-tls
-  issuerRef:
-    name: ca-issuer
-    # We can reference ClusterIssuers by changing the kind here.
-    # The default value is Issuer (i.e. a locally namespaced Issuer)
-    kind: Issuer
-  commonName: ${COMMON_NAME}
-  dnsNames:
-  - ${COMMON_NAME}
-EOF
-```
-
-4. Wait for the certificate:
-
-```
-(until kubectl get secret iap-tutorial-ingress-tls 2>/dev/null; do echo "Waiting for certificate..." ; sleep 2; done)
-```
-
-## Task 4 - Configure OAuth consent screen
+## Task 3 - Configure OAuth consent screen
 
 1. Go to the [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent).
 2. Under __Email address__, select the email address you want to display as a public contact. This must be your email address, or a Google Group you own.
@@ -131,7 +67,7 @@ EOF
 4. Add any optional details you’d like.
 5. Click __Save__.
 
-## Task 5 - Set up IAP access
+## Task 4 - Set up IAP access
 
 1. Go to the [Identity-Aware Proxy page](https://console.cloud.google.com/security/iap/project).
 2. On the right side panel, next to __Access__, click __Add__.
@@ -147,7 +83,7 @@ EOF
 
 4. When you're finished adding members, click __Add__.
 
-## Task 6 - Create OAuth credentials
+## Task 5 - Create OAuth credentials
 
 1. Go to the [Credentials page](https://console.cloud.google.com/apis/credentials)
 2. Click __Create Credentials > OAuth client ID__,
@@ -164,7 +100,7 @@ CLIENT_SECRET=YOUR_CLIENT_SECRET
 kubectl create secret generic iap-oauth --from-literal=client_id=${CLIENT_ID} --from-literal=client_secret=${CLIENT_SECRET}
 ```
 
-## Task 5 - Deploy iap-ingress chart
+## Task 6 - Deploy iap-ingress chart
 
 1. Create values file for chart:
 
@@ -175,7 +111,6 @@ endpointServiceName: iap-tutorial
 targetServiceName: sample-app
 targetServicePort: 8080
 oauthSecretName: iap-oauth
-tlsSecretName: iap-tutorial-ingress-tls
 esp:
   enabled: true
 EOF
@@ -193,7 +128,7 @@ helm install --name iap-tutorial-ingress ../charts/iap-ingress -f values.yaml
 PROJECT=$(gcloud config get-value project)
 COMMON_NAME="iap-tutorial.endpoints.${PROJECT}.cloud.goog"
 
-(until [[ $(curl -sfk -w "%{http_code}" https://${COMMON_NAME}) == "302" ]]; do echo "Waiting for LB with IAP..."; sleep 2; done)
+(until [[ $(curl -sf -w "%{http_code}" https://${COMMON_NAME}) == "302" ]]; do echo "Waiting for LB with IAP..."; sleep 2; done)
 ```
 
 4. Open your browser to `https://iap-tutorial.endpoints.PROJECT_ID.cloud.goog` replacing `PROJECT_ID` with your project id.
@@ -201,7 +136,7 @@ COMMON_NAME="iap-tutorial.endpoints.${PROJECT}.cloud.goog"
 
 > NOTE: It may take 10-15 minutes for the load balancer to be provisioned.
 
-## Task 6 - Cleanup
+## Task 7 - Cleanup
 
 1. Delete the chart:
 
