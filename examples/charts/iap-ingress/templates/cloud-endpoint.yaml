@@ -13,4 +13,4 @@ spec:
     name: {{ .Values.endpointServiceName }}-ingress
     namespace: {{ .Release.Namespace }}
     jwtServices:
-    - {{ .Values.endpointServiceName }}-esp
+    - {{ .Values.endpointServiceName }}-proxy

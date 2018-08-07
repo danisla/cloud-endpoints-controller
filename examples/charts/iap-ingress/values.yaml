@@ -1,0 +1,60 @@
+# Default values for iap-ingress.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Name of the secret containing the oauth credential keys:
+#   client_id
+#   client_secret
+oauthSecretName:
+
+# Name of secret containing TLS certificate for ingress.
+tlsSecretName:
+
+# Name of the upstream service to route to.
+targetServiceName:
+
+# Port number of upstream service
+targetServicePort: 80
+
+# Extensible Service Proxy (ESP) configuration
+esp:
+  enabled: false
+  
+  # Name of the Cloud Endpoints service, this will generate a DNS record in the form of:
+  #   NAME.endpoints.PROJECT_ID.cloud.goog
+  endpointServiceName:
+
+  image:
+    repository: gcr.io/endpoints-release/endpoints-runtime
+    tag: 1
+    pullPolicy: IfNotPresent
+
+envoy:
+  enabled: false
+
+  image:
+    repository: gcr.io/kubeflow-images-public/envoy
+    tag: v20180309-0fb4886b463698702b6a08955045731903a18738
+    pullPolicy: IfNotPresent
+
+  # Name of configmap with envoy config, if not specified, a default one will be created.
+  # Config must contain a jwt decoder with placeholder values that will be updated:
+  # jwts:
+  #    audiences: "{JWT_AUDIENCE}"
+  #    ...
+  configMapName:
+
+  # Key name in configmap containing envoy config
+  configMapKey: envoy-config.yaml
+
+  jwtIssuer: https://cloud.google.com/iap
+  jwksURI: https://www.gstatic.com/iap/verify/public_key-jwk
+  jwtHeaders: x-goog-iap-jwt-assertion
+
+# Name of the project ID for the Cloud Endpoints service
+projectID:
+
+ingress:
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "true"
+  path: /*

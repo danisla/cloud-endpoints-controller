@@ -1,4 +1,4 @@
-# Cloud Endpoints and IAP Example with ESP
+# Cloud Endpoints and IAP Example with Envoy
 
 [![button](http://gstatic.com/cloudssh/images/open-btn.png)](https://console.cloud.google.com/cloudshell/open?git_repo=https://github.com/danisla/cloud-endpoints-controller&page=editor&tutorial=examples/iap-esp/README.md)
 
@@ -33,7 +33,7 @@ gcloud container clusters create dev --zone=us-central1-c --cluster-version=${VE
 4. Change to the example directory:
 
 ```
-cd examples/iap-esp
+cd examples/iap-envoy
 ```
 
 ## Task 1 - Install Cloud Endpoints Controller
@@ -172,11 +172,11 @@ kubectl create secret generic iap-oauth --from-literal=client_id=${CLIENT_ID} --
 cat > values.yaml <<EOF
 projectID: $(gcloud config get-value project)
 endpointServiceName: iap-tutorial
-targetServiceName: sample-app
+targetServiceName: sample-
 targetServicePort: 8080
 oauthSecretName: iap-oauth
 tlsSecretName: iap-tutorial-ingress-tls
-esp:
+envoy:
   enabled: true
 EOF
 ```
@@ -195,9 +195,6 @@ COMMON_NAME="iap-tutorial.endpoints.${PROJECT}.cloud.goog"
 
 (until [[ $(curl -sfk -w "%{http_code}" https://${COMMON_NAME}) == "302" ]]; do echo "Waiting for LB with IAP..."; sleep 2; done)
 ```
-
-4. Open your browser to `https://iap-tutorial.endpoints.PROJECT_ID.cloud.goog` replacing `PROJECT_ID` with your project id.
-5. Login with your Google account and verify the the sample app is show.
 
 > NOTE: It may take 10-15 minutes for the load balancer to be provisioned.
 

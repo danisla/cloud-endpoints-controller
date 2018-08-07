@@ -20,6 +20,6 @@ spec:
       paths:
         - path: {{ .Values.ingress.path }}
           backend:
-            serviceName: {{ .Values.endpointServiceName }}-esp
+            serviceName: {{ .Values.endpointServiceName }}-proxy
             servicePort: http
 
