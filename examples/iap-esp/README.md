@@ -50,6 +50,12 @@ kubectl plugin install-helm
 kubectl plugin install-cloud-endpoints-controller
 ```
 
+3. Install cert-manager and ACME ClusterIssuers 
+
+```
+kubectl plugin install-cert-manager
+```
+
 ## Task 2 - Deploy Sample App
 
 1. Deploy the target app that you will proxy with IAP:
