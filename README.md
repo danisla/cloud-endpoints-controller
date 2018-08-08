@@ -56,6 +56,12 @@ helm install --name metacontroller --namespace metacontroller charts/metacontrol
 helm install --name cloud-endpoints-controller --namespace=metacontroller charts/cloud-endpoints-controller
 ```
 
+## IAP Ingress Tutorial
+
+[![button](http://gstatic.com/cloudssh/images/open-btn.png)](https://console.cloud.google.com/cloudshell/open?git_repo=https://github.com/danisla/cloud-endpoints-controller&page=editor&tutorial=examples/iap-esp/README.md)
+
+Tutorial showing how to use the Cloud Endpoints Controller with the Identity Aware Proxy on Google Kubernetes Engine.
+
 ## Examples
 
 ### Simple IP target
