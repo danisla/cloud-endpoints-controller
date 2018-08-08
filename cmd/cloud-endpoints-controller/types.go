@@ -14,19 +14,19 @@ const (
 	StateEndpointRolloutPending = "ENDPOINT_ROLLOUT_PENDING"
 )
 
-// LambdaRequest describes the payload from the LambdaController hook
-type LambdaRequest struct {
+// SyncRequest describes the payload from the CompositeController hook
+type SyncRequest struct {
 	Parent   CloudEndpoint                          `json:"parent"`
 	Children CloudEndpointControllerRequestChildren `json:"children"`
 }
 
-// LambdaResponse is the LambdaController response structure.
-type LambdaResponse struct {
+// SyncResponse is the CompositeController response structure.
+type SyncResponse struct {
 	Status   CloudEndpointControllerStatus `json:"status"`
 	Children []interface{}                 `json:"children"`
 }
 
-// CloudEndpointControllerRequestChildren is the children definition passed by the LambdaController request for the CloudEndpoint controller.
+// CloudEndpointControllerRequestChildren is the children definition passed by the CompositeController request for the CloudEndpoint controller.
 type CloudEndpointControllerRequestChildren struct {
 }
 

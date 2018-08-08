@@ -8,16 +8,7 @@ cloudSA:
   secretName:
   secretKey:
 
-godev:
-  enabled: false
-  gopath: github.com/danisla/cloud-endpoints-controller
-  persistence:
-    enabled: true
-    size: 10Gi
-    nfsHost: godev-nfs-nfs-server.metacontroller.svc.cluster.local
-    nfsPath: /exports
-
 image:
   repository: gcr.io/cloud-solutions-group/cloud-endpoints-controller
-  tag: 0.1.1
-  pullPolicy: Always
+  tag: 0.2.0
+  pullPolicy: IfNotPresent
