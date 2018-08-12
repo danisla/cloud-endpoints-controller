@@ -53,7 +53,7 @@ spec:
             -p 8080 \
             -z healthz \
             -a {{ .Values.targetServiceName }}:{{ .Values.targetServicePort }} \
-            -s {{ .Values.endpointServiceName }}.endpoints.{{ .Values.projectID }}.cloud.goog
+            -s {{ template "iap-ingress.endpointUrl" . }}
             -v ${SERVICE_VERSION}
         readinessProbe:
           httpGet:

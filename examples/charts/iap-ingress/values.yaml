@@ -7,7 +7,7 @@
 #   client_secret
 oauthSecretName:
 
-# Name of secret containing TLS certificate for ingress.
+# If set, will use existing cert from secret, otherwise the conventional name will be used: "endpointServiceName-tls"
 tlsSecretName:
 
 # Name of the upstream service to route to.
@@ -58,3 +58,8 @@ ingress:
   annotations:
     ingress.kubernetes.io/ssl-redirect: "true"
   path: /*
+
+cert:
+  enabled: true
+  issuer: letsencrypt-production
+  kind: ClusterIssuer
