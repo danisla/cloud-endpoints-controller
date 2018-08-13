@@ -1,0 +1,9 @@
+apiVersion: skaffold/v1alpha2
+kind: Config
+build:
+  artifacts:
+  - imageName: gcr.io/cloud-solutions-group/cloud-endpoints-controller
+    docker:
+      dockerfilePath: Dockerfile.dev
+deploy:
+  kustomize: {}

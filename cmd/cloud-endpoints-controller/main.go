@@ -38,7 +38,7 @@ func init() {
 
 func main() {
 	http.HandleFunc("/healthz", healthzHandler())
-	http.HandleFunc("/", lambdaHandler())
+	http.HandleFunc("/", webhookHandler())
 
 	log.Printf("[INFO] Initialized controller on port 80\n")
 	log.Fatal(http.ListenAndServe(":80", nil))
@@ -50,7 +50,7 @@ func healthzHandler() func(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func lambdaHandler() func(w http.ResponseWriter, r *http.Request) {
+func webhookHandler() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			w.WriteHeader(http.StatusBadRequest)
@@ -58,11 +58,11 @@ func lambdaHandler() func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var req LambdaRequest
+		var req SyncRequest
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(&req); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			log.Printf("[ERROR] Could not parse LambdaRequest: %v", err)
+			log.Printf("[ERROR] Could not parse SyncRequest: %v", err)
 			return
 		}
 
@@ -72,7 +72,7 @@ func lambdaHandler() func(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[ERROR] Could not sync state: %v", err)
 		}
 
-		resp := LambdaResponse{
+		resp := SyncResponse{
 			Status:   *desiredStatus,
 			Children: *desiredChildren,
 		}
@@ -80,7 +80,7 @@ func lambdaHandler() func(w http.ResponseWriter, r *http.Request) {
 		data, err := json.Marshal(resp)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			log.Printf("[ERROR] Could not generate LambdaResponse: %v", err)
+			log.Printf("[ERROR] Could not generate SyncResponse: %v", err)
 			return
 		}
 		fmt.Fprintf(w, string(data))
@@ -104,14 +104,18 @@ func sync(parent *CloudEndpoint, children *CloudEndpointControllerRequestChildre
 		// Check if endpoint service exists, if not then create it.
 		ep := status.Endpoint
 		currService, err := config.clientServiceMan.Services.Get(ep).Do()
-		if (err != nil && strings.Contains(err.Error(), "not found or permission denied")) || currService.HTTPStatusCode == 403 {
-			log.Printf("[INFO][%s] Service does not yet exist, creating: %s", parent.Name, ep)
-			_, err := config.clientServiceMan.Services.Create(&servicemanagement.ManagedService{
-				ProducerProjectId: parent.Spec.Project,
-				ServiceName:       ep,
-			}).Do()
-			if err != nil {
-				return status, &desiredChildren, fmt.Errorf("[ERROR] Failed to creat Cloud Endpoints service: serviceName: %s, err: %v", ep, err)
+		if err != nil {
+			if strings.Contains(err.Error(), "not found or permission denied") || (currService != nil && currService.HTTPStatusCode == 403) {
+				log.Printf("[INFO][%s] Service does not yet exist, creating: %s", parent.Name, ep)
+				_, err := config.clientServiceMan.Services.Create(&servicemanagement.ManagedService{
+					ProducerProjectId: parent.Spec.Project,
+					ServiceName:       ep,
+				}).Do()
+				if err != nil {
+					return status, &desiredChildren, fmt.Errorf("[ERROR] Failed to creat Cloud Endpoints service: serviceName: %s, err: %v", ep, err)
+				}
+			} else {
+				return status, &desiredChildren, fmt.Errorf("[ERROR][%s] Failed to get existing endpoint service: %v", parent.Name, err)
 			}
 		} else {
 			log.Printf("[INFO][%s] Endpoint service already exists, skipping create.", parent.Name)
@@ -132,12 +136,14 @@ func sync(parent *CloudEndpoint, children *CloudEndpointControllerRequestChildre
 				// Fetch the ingress
 				ingress, err := config.clientset.ExtensionsV1beta1().Ingresses(parent.Spec.TargetIngress.Namespace).Get(parent.Spec.TargetIngress.Name, metav1.GetOptions{})
 				if err != nil {
-					return status, &desiredChildren, err
+					log.Printf("[INFO][%s] waiting for Ingress %s", parent.Name, parent.Spec.TargetIngress.Name)
+					return status, &desiredChildren, nil
 				}
 
 				// Get target from ingress IP
 				if len(ingress.Status.LoadBalancer.Ingress) < 1 {
-					return status, &desiredChildren, fmt.Errorf("no loadbalancer configured for Ingress %s", parent.Spec.TargetIngress.Name)
+					log.Printf("[INFO][%s] waiting for loadbalancer status from Ingress %s", parent.Name, parent.Spec.TargetIngress.Name)
+					return status, &desiredChildren, nil
 				}
 				target = ingress.Status.LoadBalancer.Ingress[0].IP
 
@@ -152,7 +158,7 @@ func sync(parent *CloudEndpoint, children *CloudEndpointControllerRequestChildre
 					for i, svcName := range parent.Spec.TargetIngress.JWTServices {
 						svc, err := config.clientset.CoreV1().Services(parent.Spec.TargetIngress.Namespace).Get(svcName, metav1.GetOptions{})
 						if err != nil {
-							return status, &desiredChildren, err
+							return status, &desiredChildren, fmt.Errorf("Failed to populate JWT audience from kubernetes service, not found: '%s', %v", svcName, err)
 						}
 						if svc.Spec.Type == corev1.ServiceTypeNodePort && len(svc.Spec.Ports) > 0 {
 							nodePort := strconv.Itoa(int(svc.Spec.Ports[0].NodePort))
@@ -204,7 +210,8 @@ func sync(parent *CloudEndpoint, children *CloudEndpointControllerRequestChildre
 		ep := status.Endpoint
 		_, err = config.clientServiceMan.Services.Get(ep).Do()
 		if err != nil {
-			return status, &desiredChildren, fmt.Errorf("Waiting for Endpoint creation: %s", ep)
+			log.Printf("[INFO][%s] Waiting for Endpoint creation: %s", parent.Name, ep)
+			return status, &desiredChildren, nil
 		}
 
 		log.Printf("[INFO][%s] Endpoint created: %s, submitting endpoint config.", parent.Name, ep)

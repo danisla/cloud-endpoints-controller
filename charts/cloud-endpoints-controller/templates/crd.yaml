@@ -19,7 +19,7 @@ spec:
     shortNames: ["cloudep", "ce"]
 ---
 apiVersion: metacontroller.k8s.io/v1alpha1
-kind: LambdaController
+kind: CompositeController
 metadata:
   name: cloud-endpoints-controller
   labels:
@@ -29,16 +29,14 @@ metadata:
     heritage: {{ .Release.Service }}
     component: cloud-endpoints-controller
 spec:
+  generateSelector: true
+  resyncPeriodSeconds: 2
   parentResource:
     apiVersion: ctl.isla.solutions/v1
     resource: cloudendpoints
   childResources: []
-  clientConfig:
-    service:
-      name: {{ template "cloud-endpoints-controller.fullname" . }}
-      namespace: {{ .Release.Namespace }}
-    caBundle: ...
   hooks:
     sync:
-      path: /sync
-  generateSelector: true
+      webhook:
+        url: http://{{ template "cloud-endpoints-controller.fullname" . }}.{{ .Release.Namespace}}/sync
+  
