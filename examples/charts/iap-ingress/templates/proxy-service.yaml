@@ -16,5 +16,5 @@ spec:
     targetPort: 8080
     protocol: TCP
   selector:
-    app: {{ .Values.endpointServiceName }}-proxy
+    app: {{ template "iap-ingress.name" . }}
   type: NodePort

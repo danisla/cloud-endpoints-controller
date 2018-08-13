@@ -49,6 +49,12 @@ metadata:
   name: {{ template "iap-ingress.fullname" . }}-bootstrap
 spec:
   template:
+    metadata:
+      labels:
+        app: {{ template "iap-ingress.name" . }}
+        chart: {{ template "iap-ingress.chart" . }}
+        release: {{ .Release.Name }}
+        heritage: {{ .Release.Service }}
     spec:
       restartPolicy: OnFailure
       serviceAccountName: {{ template "iap-ingress.fullname" . }}-bootstrap

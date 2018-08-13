@@ -13,7 +13,10 @@ spec:
   template:
     metadata:
       labels:
-        app: {{ .Values.endpointServiceName }}-proxy
+        app: {{ template "iap-ingress.name" . }}
+        chart: {{ template "iap-ingress.chart" . }}
+        release: {{ .Release.Name }}
+        heritage: {{ .Release.Service }}
     spec:
       serviceAccountName: {{ .Values.endpointServiceName }}-proxy
       initContainers:
