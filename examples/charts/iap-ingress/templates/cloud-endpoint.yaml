@@ -14,7 +14,7 @@ spec:
     namespace: {{ .Release.Namespace }}
     jwtServices:
     - {{ .Values.endpointServiceName }}-proxy
-  {{- if .Values.client.priorityClassName }}
+  {{- if .Values.openAPISpec != nil }}
   openAPISpec: 
   {{ toYaml .Values.openAPISpec | indent 2 }}
  {{- end }}
