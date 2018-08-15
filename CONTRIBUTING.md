@@ -7,19 +7,59 @@ This project uses the following build tools:
 - [skaffold](https://github.com/GoogleContainerTools/skaffold)
 - [kustomize](https://github.com/kubernetes-sigs/kustomize)
 
-1. Install the metacontroller:
+1. Clone the repository into your `GOPATH`:
+
+```
+mkdir -p ${GOPATH}/src/github.com/danisla/
+cd ${GOPATH}/src/github.com/danisla/
+git clone https://github.com/danisla/cloud-endpoints-controller.git
+```
+
+Add your fork as another git remote:
+
+```
+FORK_URI=git@github.com:YOUR_GITHUB_USER/cloud-endpoints-controller.git
+git remote add fork ${FORK_URI}
+```
+
+2. Modify the skaffold and kustomize image to a docker registry you can push to:
+
+In skaffold.yaml:
+
+    ```yaml
+    build:
+      artifacts:
+      - imageName: YOUR_REGISTRY/cloud-endpoints-controller
+    ```
+
+    > Replace `YOUR_REGISTRY` with something you can push to. 
+
+In `manifests/dev/image.yaml`:
+
+    ```yaml
+    spec:
+      template:
+        spec:
+          containers:
+          - name: cloud-endpoints-controller
+            image: YOUR_REGISTRY/cloud-endpoints-controller
+    ```
+
+    > Replace `YOUR_REGISTRY` with something you can push to.
+
+3. Install the metacontroller:
 
 ```
 make install-metacontroller
 ```
 
-2. Install go dependencies:
+4. Install go dependencies:
 
 ```
 dep ensure
 ```
 
-3. Run in cluster with skaffold:
+5. Run in cluster with skaffold:
 
 ```
 skaffold dev
@@ -39,10 +79,23 @@ make test
 make test-stop
 ```
 
-## Building Container Image
+## Building the release container image
 
 1. Build image using container builder in current project:
 
 ```
 make image
 ```
+
+## Submitting a pull request
+
+1. Push changes to a branch in your fork.
+
+```
+git checkout -b my-new-feature
+git add .
+git commit -m "my new feature"
+git push fork my-new-feature
+```
+
+2. Submit a Github pull request from your branch in your fork to the master branch.
