@@ -26,26 +26,26 @@ git remote add fork ${FORK_URI}
 
 In skaffold.yaml:
 
-    ```yaml
-    build:
-      artifacts:
-      - imageName: YOUR_REGISTRY/cloud-endpoints-controller
-    ```
+```
+build:
+  artifacts:
+  - imageName: YOUR_REGISTRY/cloud-endpoints-controller
+```
 
-    > Replace `YOUR_REGISTRY` with something you can push to. 
+> Replace `YOUR_REGISTRY` with something you can push to. 
 
 In `manifests/dev/image.yaml`:
 
-    ```yaml
+```
+spec:
+  template:
     spec:
-      template:
-        spec:
-          containers:
-          - name: cloud-endpoints-controller
-            image: YOUR_REGISTRY/cloud-endpoints-controller
-    ```
+      containers:
+      - name: cloud-endpoints-controller
+        image: YOUR_REGISTRY/cloud-endpoints-controller
+```
 
-    > Replace `YOUR_REGISTRY` with something you can push to.
+> Replace `YOUR_REGISTRY` with something you can push to.
 
 3. Install the metacontroller:
 
