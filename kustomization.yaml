@@ -1,0 +1,7 @@
+commonLabels:
+  app: cloud-endpoints-controller
+resources:
+- manifests/cloud-endpoints-controller-rbac.yaml
+- manifests/cloud-endpoints-controller.yaml
+patches:
+- manifests/dev/image.yaml

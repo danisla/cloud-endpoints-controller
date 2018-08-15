@@ -1,0 +1,5 @@
+.git/
+service*-.yaml
+charts/
+examples/
+manifests/

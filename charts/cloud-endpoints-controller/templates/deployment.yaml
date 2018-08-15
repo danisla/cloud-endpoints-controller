@@ -21,44 +21,10 @@ spec:
     spec:
       serviceAccountName: {{ template "cloud-endpoints-controller.fullname" . }}
       terminationGracePeriodSeconds: 5
-      {{- if .Values.godev.enabled }}
-      {{- if .Values.godev.persistence.enabled }}
-      affinity:
-        podAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: component
-                operator: In
-                values:
-                - nfs-server
-            topologyKey: "kubernetes.io/hostname"
-      {{- end }}
-      {{- end }}
       containers:
-      {{- if .Values.godev.enabled }}
-      - name: godev
-        image: "docker.io/golang:1.9.2-alpine3.7"
-        imagePullPolicy: IfNotPresent
-        command: ["/opt/godev/start.sh"]
-        volumeMounts:
-        - name: godev-data
-          mountPath: /opt/godev
-        - name: godev-shared
-          mountPath: /go/bin
-        - name: godev-persist
-          mountPath: /go/pkg
-      {{- end }}
       - name: cloud-endpoints-controller
-        {{- if .Values.godev.enabled }}
-        image: "docker.io/golang:1.9.2-alpine3.7"
-        {{- else }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-        {{- end }}
         imagePullPolicy: {{ default "" .Values.image.pullPolicy | quote }}
-        {{- if .Values.godev.enabled }}
-        command: ["/opt/godev/watcher.sh"]
-        {{- end }}
         env:
         {{- if .Values.cloudSA.enabled }}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -70,20 +36,10 @@ spec:
           readOnly: true
           mountPath: /var/run/secrets/sa
         {{- end }}
-        {{- if .Values.godev.enabled }}
-        - name: godev-data
-          mountPath: /opt/godev
-        - name: godev-shared
-          mountPath: /opt/shared
-        {{- end }}
         readinessProbe:
           httpGet:
             path: /healthz
-            {{- if .Values.godev.enabled }}
-            port: 8000
-            {{- else }}
             port: 80
-            {{- end }}
             scheme: HTTP
           periodSeconds: 5
           timeoutSeconds: 5
@@ -94,17 +50,4 @@ spec:
       - name: sa-key
         secret:
           secretName: {{ .Values.cloudSA.secretName }}
-      {{- end }}
-      {{- if .Values.godev.enabled }}
-      - name: godev-data
-        configMap:
-          name: {{ template "cloud-endpoints-controller.fullname" . }}-godev
-          defaultMode: 0755
-      - name: godev-shared
-        emptyDir: {}
-      {{- if .Values.godev.persistence.enabled }}
-      - name: godev-persist
-        persistentVolumeClaim:
-          claimName: {{ template "cloud-endpoints-controller.fullname" . }}-godev
-      {{- end }}
       {{- end }}

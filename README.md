@@ -4,11 +4,11 @@ This is not an official Google product.
 
 ## Intro
 
-Implementation of a [LambdaController kube-metacontroller](https://github.com/GoogleCloudPlatform/kube-metacontroller) to create and manage Cloud Endpoints services.
+Implementation of a [CompositeController metacontroller](https://github.com/GoogleCloudPlatform/metacontroller) to create and manage Cloud Endpoints services.
 
 This controller utilizes the following major components:
 - [Custom Resource Definitions (CRD)](https://kubernetes.io/docs/concepts/api-extension/custom-resources/): Used to represent the new `CloudEndpoint` custom resource.
-- [kube-metacontroller](https://github.com/GoogleCloudPlatform/kube-metacontroller): Implements the LambdaController interface for the Custom Resource Definition.
+- [metacontroller](https://github.com/GoogleCloudPlatform/metacontroller): Implements the CompositeController interface for the Custom Resource Definition.
 
 ## Prerequisites
 
@@ -42,10 +42,10 @@ kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admi
 helm init --service-account=tiller
 ```
 
-4. Install kube-metacontroller:
+4. Install metacontroller:
 
 ```sh
-helm install --name metacontroller --namespace metacontroller charts/kube-metacontroller
+helm install --name metacontroller --namespace metacontroller charts/metacontroller
 ```
 
 ## Installing the chart
@@ -55,6 +55,12 @@ helm install --name metacontroller --namespace metacontroller charts/kube-metaco
 ```
 helm install --name cloud-endpoints-controller --namespace=metacontroller charts/cloud-endpoints-controller
 ```
+
+## IAP Ingress Tutorial
+
+[![button](http://gstatic.com/cloudssh/images/open-btn.png)](https://console.cloud.google.com/cloudshell/open?git_repo=https://github.com/danisla/cloud-endpoints-controller&page=editor&tutorial=examples/iap-esp/README.md)
+
+Tutorial showing how to use the Cloud Endpoints Controller with the Identity Aware Proxy on Google Kubernetes Engine.
 
 ## Examples
 

@@ -1,0 +1,12 @@
+# Override image for development mode (skaffold fills in the tag).
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: cloud-endpoints-controller
+  namespace: metacontroller
+spec:
+  template:
+    spec:
+      containers:
+      - name: cloud-endpoints-controller
+        image: gcr.io/cloud-solutions-group/cloud-endpoints-controller
