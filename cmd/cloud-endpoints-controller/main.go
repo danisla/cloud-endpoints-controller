@@ -156,6 +156,9 @@ func sync(parent *CloudEndpoint, children *CloudEndpointControllerRequestChildre
 			} else {
 				log.Printf("[INFO] Updating User Supplied API Spec")
 				openAPISpec, err = executeTemplate(openAPISpec, status.Endpoint, target, status.JWTAudiences)
+				if err := validateOpenAPISpec(openAPISpec); err != nil {
+					return status, &desiredChildren, err
+				}
 			}
 			// Submit endpoint config if service exists.
 			ep := status.Endpoint
@@ -376,41 +379,25 @@ func calcParentSig(parent *CloudEndpoint, addStr string) string {
 	hasher.Write([]byte(addStr))
 	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
-func validateOpenAPISpec(specOriginal interface{}) (string, error) {
-	specYaml, err := yaml.Marshal(specOriginal)
-	if err == nil {
-		var spec []byte
-		var specYamlJSON []byte
-		specYamlJSON, err = yaml.YAMLToJSON(specYaml)
-		log.Printf("[DEBUG] %s", specYamlJSON)
-		err = yaml.Unmarshal([]byte(specYaml), &spec)
-	}
-	return string(specYaml), err
+
+func validateOpenAPISpec(specOriginal string) (error) {
+	var spec map[string]interface{}
+	return yaml.Unmarshal([]byte(specOriginal), &spec)
 }
+
 func getUserSuppliedOpenAPISpec(parent *CloudEndpoint) (string, error) {
-	var openAPISpec = parent.Spec.OpenAPISpec
 	var specString string
 	var err error
-	if openAPISpec == nil {
+	if parent.Spec.OpenAPISpec == nil {
 		log.Printf("[DEBUG] %s Get user supplied API spec from ConfigMap", parent.Name)
 		specString, err = getConfigMapSpec(parent)
-		if specString != "" {
-			specString, err = validateOpenAPISpec(specString)
-		} else {
-			log.Printf("[DEBUG] %s, Unable to find user supplied API Spec", parent.Name)
-		}
 	} else {
 		log.Printf("[DEBUG] %s Get user supplied API spec from Spec", parent.Name)
-		specString, err = validateOpenAPISpec(openAPISpec)
+		specYaml, err := yaml.Marshal(parent.Spec.OpenAPISpec)
 		if err != nil {
-			log.Printf("[DEBUG] %s using supplied spec", parent.Name)
+			return "", err
 		}
-
-	}
-	if err != nil {
-		log.Printf("[ERROR][%s] Could not validate Open API Spec Yaml: %s", parent.Name, err.Error())
-		log.Printf("%s", specString)
-		specString = ""
+		specString = string(specYaml)
 	}
 	return specString, err
 }
