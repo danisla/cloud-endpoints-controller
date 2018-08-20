@@ -8,10 +8,14 @@ import (
 type CloudEndpointControllerState string
 
 const (
-	StateIdle                   = "IDLE"
-	StateEndpointCreatePending  = "ENDPOINT_CREATE_PENDING"
-	StateEndpointSubmitPending  = "ENDPOINT_SUBMIT_PENDING"
-	StateEndpointRolloutPending = "ENDPOINT_ROLLOUT_PENDING"
+	//StateIdle means there are no more changes pending
+	StateIdle = "IDLE"
+	//StateEndpointCreatePending means the endpoint is pending creation
+	StateEndpointCreatePending = "ENDPOINT_CREATE_PENDING"
+	//StateEndpointSubmitPending means the endpoint is pending submission
+	StateEndpointSubmitPending = "ENDPOINT_SUBMIT_PENDING"
+	//StateEndpointRolloutPending means the endpoint is pending rollout
+	StateEndpointRolloutPending = "ENDPOINT_ROLLOUT_PENDING" // Pending Rollout
 )
 
 // SyncRequest describes the payload from the CompositeController hook
@@ -50,12 +54,19 @@ type CloudEndpoint struct {
 	Status            CloudEndpointControllerStatus `json:"status"`
 }
 
+// CloudEndpointConfigMapSpec is the subspec for CloudEndpointSpec that contains a reference to a configMap containing the Open API spec
+type CloudEndpointConfigMapSpec struct {
+	Name string `json:"name"`
+	Key  string `json:"key"`
+}
+
 // CloudEndpointSpec mirrors the IngressSpec with added IAPProjectAuthz spec and a custom Rules spec.
 type CloudEndpointSpec struct {
-	Project       string                         `json:"project,omitempty"`
-	Target        string                         `json:"target,omitempty"`
-	TargetIngress CloudEndpointTargetIngressSpec `json:"targetIngress,omitempty"`
-	OpenAPISpec   map[string]interface{}         `json:"openAPISpec,omitempty"`
+	Project              string                         `json:"project,omitempty"`
+	Target               string                         `json:"target,omitempty"`
+	TargetIngress        CloudEndpointTargetIngressSpec `json:"targetIngress,omitempty"`
+	OpenAPISpec          map[string]interface{}         `json:"openAPISpec,omitempty"`
+	OpenAPISpecConfigMap CloudEndpointConfigMapSpec     `json:"openAPISpecConfigMap"`
 }
 
 // CloudEndpointTargetIngressSpec is the format for the targetIngress spec
