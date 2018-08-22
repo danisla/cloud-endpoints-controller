@@ -131,7 +131,6 @@ func sync(parent *CloudEndpoint, children *CloudEndpointControllerRequestChildre
 		log.Printf("[INFO][%s] Create pending", parent.Name)
 		var target string
 		var openAPISpecTemplate string
-		var finalOpenAPISpec string
 		var err error
 
 		if parent.Spec.TargetIngress.Name != "" {
@@ -158,7 +157,7 @@ func sync(parent *CloudEndpoint, children *CloudEndpointControllerRequestChildre
 				openAPISpecTemplate = getWildcardAPITemplate()
 			}
 		}
-		finalOpenAPISpec, err = executeTemplate(openAPISpecTemplate, status.Endpoint, target, status.JWTAudiences)
+		finalOpenAPISpec, err := executeTemplate(openAPISpecTemplate, status.Endpoint, target, status.JWTAudiences)
 		if err != nil {
 			log.Printf("[ERROR][%s] %v", parent.Name, err)
 			return status, &desiredChildren, err
@@ -395,8 +394,7 @@ func validateOpenAPISpec(specOriginal string) error {
 }
 
 func getWildcardAPITemplate() string {
-	templateString := `
-swagger: "2.0"
+	return `swagger: "2.0"
 info:
   description: "wildcard config for any HTTP service."
   title: "General HTTP Service."
@@ -463,7 +461,6 @@ securityDefinitions:
     x-google-audiences: "{{ StringsJoin .JWTAudiences "," }}"
 {{ end }}
 `
-	return templateString
 }
 
 func executeTemplate(templateSpec, endpoint, target string, jwtAudiences []string) (string, error) {

@@ -11,7 +11,7 @@ metadata:
   name: {{NAME}}
 spec:
   project: {{PROJECT}}
-  openAPISpec: |
+  openAPISpec: |-
     swagger: "2.0"
     info:
       description: "wildcard config for any HTTP service."
@@ -178,9 +178,9 @@ define TEST_SERVICE_SPEC_CONFIGMAP_SPEC
 apiVersion: v1
 kind: ConfigMap 
 metadata: 
-  name: swagger 
+  name: {{NAME}}-swagger 
 data: 
-  spec: |
+  spec: |-
     swagger: "2.0"
     info:
       description: "wildcard config for any HTTP service."
@@ -273,9 +273,9 @@ define CHANGED_CONFIGMAP
 apiVersion: v1
 kind: ConfigMap 
 metadata: 
-  name: swagger 
+  name: {{NAME}}-swagger 
 data: 
-  spec: |
+  spec: |-
     swagger: "2.0"
     info:
       description: "wildcard config for any HTTP service."
