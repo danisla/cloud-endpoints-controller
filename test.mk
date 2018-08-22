@@ -403,7 +403,7 @@ service%-configmap-update.yaml: project
 THIS_FILE := $(lastword $(MAKEFILE_LIST))
 
 test-watched: $(PHASE2_TEST_ARTIFACTS)
-	$(shell sleep 70s)
+	$(shell sleep 120s)
 	-@for f in $^; do kubectl apply -f $$f; done 
 
 test: $(TEST_ARTIFACTS)
