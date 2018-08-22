@@ -58,7 +58,7 @@ helm install --name cloud-endpoints-controller --namespace=metacontroller charts
 
 ## IAP Ingress Tutorial
 
-[![button](http://gstatic.com/cloudssh/images/open-btn.png)](https://console.cloud.google.com/cloudshell/open?git_repo=https://github.com/danisla/cloud-endpoints-controller&page=editor&tutorial=examples/iap-esp/README.md)
+[![button](http://gstatic.com/cloudssh/images/open-btn.png)](https://console.cloud.google.com/cloudshell/open?git_repo=https://github.com/danisla/cloud-endpoints-controller&page=shell&tutorial=examples/iap-esp/README.md)
 
 Tutorial showing how to use the Cloud Endpoints Controller with the Identity Aware Proxy on Google Kubernetes Engine.
 
@@ -122,7 +122,9 @@ kubectl apply -f ingress-cloudep.yaml
 
 ### Full OpenAPI Spec
 
-1. Create a CloudEndpoint resource like the example below:
+1. Create a CloudEndpoint resource like one of the examples below:
+
+#### Full OpenAPI Spec
 
 ```sh
 PROJECT=$(gcloud config get-value project)
@@ -133,7 +135,7 @@ apiVersion: ctl.isla.solutions/v1
 kind: CloudEndpoint
 metadata:
   name: service1
-spec:
+spec: |-
   openAPISpec:
     swagger: "2.0"
     info:
@@ -202,4 +204,267 @@ spec:
 EOF
 
 kubectl apply -f service1-cloudep.yaml
+```
+
+#### Template OpenAPI Spec and Ingress:  
+
+The `spec.openAPISpec` field is a go template with the following substitutions:
+
+ - `{{.Target}}`: The external IP of the ingress resource when `spec.targetIngress` is specified.
+ - `{{.Endpoint}}`: The endpoint URL in the form of: `[NAME].endpoints.[PROJECT].cloud.goog`.
+ - `{{.JWTAudiences}}`: Comma-separated list of JWT audiences created from the backend services when `spec.targetIngress.jwtServices[]` is provided. Useful when using Cloud Endpoints with IAP.
+
+```sh
+PROJECT=$(gcloud config get-value project)
+cat > service4-cloudep-ing.yaml <<EOF
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: service4-ingress
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+spec:
+  rules:
+  - host: service4.endpoints.${PROJECT}.cloud.goog
+    http:
+      paths:
+      - path:
+        backend:
+          serviceName: service4
+          servicePort: 80
+--- 
+apiVersion: ctl.isla.solutions/v1
+kind: CloudEndpoint
+metadata:
+  name: service4
+spec:
+  project: ${PROJECT}
+  targetIngress:
+    name: service4-ingress
+    namespace: default
+    jwtServices:
+    - service4
+  openAPISpec: |-
+    swagger: "2.0"
+    info:
+      description: "wildcard config for any HTTP service."
+      title: "Test Template Spec: service4"
+      version: "1.0.0"
+    basePath: "/"
+    consumes:
+    - "application/json"
+    produces:
+    - "application/json"
+    schemes:
+    - "http"
+    - "https"
+    paths:
+      "/**":
+        get:
+          operationId: Get
+          responses:
+            '200':
+              description: Get
+            default:
+              description: Error
+        delete:
+          operationId: Delete
+          responses:
+            '204':
+              description: Delete
+            default:
+              description: Error
+        patch:
+          operationId: Patch
+          responses:
+            '200':
+              description: Patch
+            default:
+              description: Error
+        post:
+          operationId: Post
+          responses:
+            '200':
+              description: Post
+            default:
+              description: Error
+        put:
+          operationId: Put
+          responses:
+            '200':
+              description: Put
+            default:
+              description: Error
+    {{- if .JWTAudiences }}
+    security:
+    - google_jwt: []
+    securityDefinitions:
+      google_jwt:
+        authorizationUrl: ""
+        flow: "implicit"
+        type: "oauth2"
+        x-google-issuer: "https://cloud.google.com/iap"
+        x-google-jwks_uri: "https://www.gstatic.com/iap/verify/public_key-jwk"
+        x-google-audiences: "{{ StringsJoin .JWTAudiences "," }}}"
+     {{ end }}
+    host: "{{.Endpoint}}"
+    x-google-endpoints:
+    - name: "{{.Endpoint}}"
+      target: "{{.Target}}"
+EOF
+
+kubectl apply -f service4-cloudep-ing.yaml
+```
+
+####  Template OpenAPI Spec from ConfigMap and Ingress: 
+
+```sh
+PROJECT=$(gcloud config get-value project)
+
+cat > service5-cloudep-cm-ing.yaml <<EOF
+apiVersion: v1
+kind: ConfigMap 
+metadata: 
+  name: service5-openapi-spec 
+data: 
+  spec: |-
+    swagger: "2.0"
+    info:
+      description: "wildcard config for any HTTP service."
+      title: "ConfigMap Template: service5"
+      version: "1.0.0"
+    basePath: "/"
+    consumes:
+    - "application/json"
+    produces:
+    - "application/json"
+    schemes:
+    - "http"
+    - "https"
+    paths:
+      "/**":
+        get:
+          operationId: Get
+          responses:
+            '200':
+              description: Get
+            default:
+              description: Error
+        delete:
+          operationId: Delete
+          responses:
+            '204':
+              description: Delete
+            default:
+              description: Error
+        patch:
+          operationId: Patch
+          responses:
+            '200':
+              description: Patch
+            default:
+              description: Error
+        post:
+          operationId: Post
+          responses:
+            '200':
+              description: Post
+            default:
+              description: Error
+        put:
+          operationId: Put
+          responses:
+            '200':
+              description: Put
+            default:
+              description: Error
+    {{- if .JWTAudiences }}
+    security:
+    - google_jwt: []
+    securityDefinitions:
+      google_jwt:
+        authorizationUrl: ""
+        flow: "implicit"
+        type: "oauth2"
+        x-google-issuer: "https://cloud.google.com/iap"
+        x-google-jwks_uri: "https://www.gstatic.com/iap/verify/public_key-jwk"
+        x-google-audiences: "{{ StringsJoin .JWTAudiences "," }}}"
+     {{ end }}
+    host: "{{.Endpoint}}"
+    x-google-endpoints:
+    - name: "{{.Endpoint}}"
+      target: "{{.Target}}"
+--- 
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: service5-ingress
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+spec:
+  rules:
+  - host: service5.endpoints.${PROJECT}.cloud.goog
+    http:
+      paths:
+      - path:
+        backend:
+          serviceName: service5
+          servicePort: 80
+---
+apiVersion: ctl.isla.solutions/v1
+kind: CloudEndpoint
+metadata:
+  name: service5
+spec:
+  project: ${PROJECT}
+  targetIngress:
+    name: service5-ingress
+    namespace: default
+    jwtServices:
+    - service5
+  openAPISpecConfigMap: 
+    name: service5-openapi-spec
+    key: spec
+--- 
+apiVersion: v1
+kind: Service
+metadata:
+  name: service5
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+  selector:
+    app: service5
+  type: NodePort
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: service5
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: service5
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+            scheme: HTTP
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 2
+EOF
+
+kubectl apply -f service5-cloudep-cm-ing.yaml
 ```

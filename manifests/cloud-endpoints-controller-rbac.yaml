@@ -24,7 +24,7 @@ metadata:
   namespace: metacontroller
 rules:
 - apiGroups: [""] # "" indicates the core API group
-  resources: ["services"]
+  resources: ["services", "configmaps"]
   verbs: ["get", "list"]
 - apiGroups: ["extensions"]
   resources: ["ingresses"]

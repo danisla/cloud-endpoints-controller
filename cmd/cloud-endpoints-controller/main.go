@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -14,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
+
 	servicemanagement "google.golang.org/api/servicemanagement/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -126,84 +128,43 @@ func sync(parent *CloudEndpoint, children *CloudEndpointControllerRequestChildre
 	}
 
 	if currState == StateEndpointCreatePending {
+		log.Printf("[INFO][%s] Create pending", parent.Name)
 		var target string
-		var openAPISpec string
+		var openAPISpecTemplate string
 		var err error
 
-		if parent.Spec.OpenAPISpec == nil {
-			// Create default spec
-			if parent.Spec.TargetIngress.Name != "" {
-				// Fetch the ingress
-				ingress, err := config.clientset.ExtensionsV1beta1().Ingresses(parent.Spec.TargetIngress.Namespace).Get(parent.Spec.TargetIngress.Name, metav1.GetOptions{})
-				if err != nil {
-					log.Printf("[INFO][%s] waiting for Ingress %s", parent.Name, parent.Spec.TargetIngress.Name)
-					return status, &desiredChildren, nil
-				}
-
-				// Get target from ingress IP
-				if len(ingress.Status.LoadBalancer.Ingress) < 1 {
-					log.Printf("[INFO][%s] waiting for loadbalancer status from Ingress %s", parent.Name, parent.Spec.TargetIngress.Name)
-					return status, &desiredChildren, nil
-				}
-				target = ingress.Status.LoadBalancer.Ingress[0].IP
-
-				// Populate the jwtAudiences
-				if len(parent.Spec.TargetIngress.JWTServices) > 0 {
-					ingBackends, err := getIngBackends(ingress)
-					if err != nil {
-						return status, &desiredChildren, err
-					}
-					bePatterns := make([]string, len(parent.Spec.TargetIngress.JWTServices))
-
-					for i, svcName := range parent.Spec.TargetIngress.JWTServices {
-						svc, err := config.clientset.CoreV1().Services(parent.Spec.TargetIngress.Namespace).Get(svcName, metav1.GetOptions{})
-						if err != nil {
-							return status, &desiredChildren, fmt.Errorf("Failed to populate JWT audience from kubernetes service, not found: '%s', %v", svcName, err)
-						}
-						if svc.Spec.Type == corev1.ServiceTypeNodePort && len(svc.Spec.Ports) > 0 {
-							nodePort := strconv.Itoa(int(svc.Spec.Ports[0].NodePort))
-							found := false
-							for _, be := range ingBackends {
-								if strings.Contains(be, fmt.Sprintf("k8s-be-%s", nodePort)) {
-									bePatterns[i] = be
-									backend, err := config.clientCompute.BackendServices.Get(config.Project, be).Do()
-									if err == nil {
-										found = true
-										jwtAud := makeJWTAudience(config.ProjectNum, strconv.Itoa(int(backend.Id)))
-										log.Printf("[INFO][%s] Created jwtAud: %s", parent.Name, jwtAud)
-										status.JWTAudiences = append(status.JWTAudiences, jwtAud)
-									}
-								}
-							}
-							if found == false {
-								return status, &desiredChildren, fmt.Errorf("Backend not found or is not ready for service: %s, NodePort: %s", svcName, nodePort)
-							}
-						} else {
-							return status, &desiredChildren, fmt.Errorf("Service %s not type NodePort", svcName)
-						}
-					}
-				}
-			} else {
-				target = parent.Spec.Target
-			}
-			openAPISpec, err = makeDefaultOpenAPISpec(status.Endpoint, target, status.JWTAudiences)
-			if err != nil {
+		if parent.Spec.TargetIngress.Name != "" {
+			target, status.JWTAudiences, err = getTargetIngress(parent)
+			if err != nil { // fatal error with Target Ingress
+				log.Printf("[INFO][%s] error with target ingress deployment, %v", parent.Name, err)
+				return status, &desiredChildren, err
+			} else if target == "" { //waiting on Target Ingress
 				return status, &desiredChildren, err
 			}
-			log.Printf("[INFO][%s] Target: %s", parent.Name, target)
-			status.IngressIP = target
 		} else {
-			// Use provided spec.
-			specYaml, err := yaml.Marshal(&parent.Spec.OpenAPISpec)
-			if err != nil {
-				return status, &desiredChildren, err
+			target = parent.Spec.Target
+		}
+		status.IngressIP = target
+		if openAPISpecTemplate = parent.Spec.OpenAPISpec; openAPISpecTemplate == "" {
+			if name, key := parent.Spec.OpenAPISpecConfigMap.Name, parent.Spec.OpenAPISpecConfigMap.Key; name != "" && key != "" {
+				openAPISpecTemplate, err = getConfigMapSpecData(parent.ObjectMeta.Namespace, name, key)
+				if err != nil { //The user tried to supply a configMap spec, but it could not be loaded yet
+					log.Printf("[INFO][%s] Waiting for ConfigMap with Spec named '%s' containing key: '%s'", parent.Name, name, key)
+					return status, &desiredChildren, nil
+				}
+				status.ConfigMapHash = toSha1(openAPISpecTemplate)
+			} else {
+				openAPISpecTemplate = getWildcardAPITemplate()
 			}
-
-			var spec map[string]interface{}
-			if err = yaml.Unmarshal([]byte(specYaml), &spec); err != nil {
-				return status, &desiredChildren, err
-			}
-			openAPISpec = string(specYaml)
+		}
+		finalOpenAPISpec, err := executeTemplate(openAPISpecTemplate, status.Endpoint, target, status.JWTAudiences)
+		if err != nil {
+			log.Printf("[ERROR][%s] %v", parent.Name, err)
+			return status, &desiredChildren, err
+		}
+		if err := validateOpenAPISpec(finalOpenAPISpec); err != nil {
+			status.StateCurrent = StateIdle
+			return status, &desiredChildren, err
 		}
 
 		// Submit endpoint config if service exists.
@@ -218,7 +179,7 @@ func sync(parent *CloudEndpoint, children *CloudEndpointControllerRequestChildre
 
 		configFiles := []*servicemanagement.ConfigFile{
 			&servicemanagement.ConfigFile{
-				FileContents: base64.StdEncoding.EncodeToString([]byte(openAPISpec)),
+				FileContents: base64.StdEncoding.EncodeToString([]byte(finalOpenAPISpec)),
 				FilePath:     "openapi.yaml",
 				FileType:     "OPEN_API_YAML",
 			},
@@ -238,7 +199,6 @@ func sync(parent *CloudEndpoint, children *CloudEndpointControllerRequestChildre
 		status.ConfigSubmit = op.Name
 
 		nextState = StateEndpointSubmitPending
-
 		status.LastAppliedSig = calcParentSig(parent, "")
 	}
 
@@ -310,6 +270,7 @@ func sync(parent *CloudEndpoint, children *CloudEndpointControllerRequestChildre
 			if op.Done {
 				cfg := status.Config
 				log.Printf("[INFO][%s] Service config rollout complete for: endpoint: %s, config: %s", parent.Name, ep, cfg)
+
 				nextState = StateIdle
 			}
 		}
@@ -347,9 +308,72 @@ func changeDetected(parent *CloudEndpoint, children *CloudEndpointControllerRequ
 				}
 			}
 		}
+
+		if parent.Spec.OpenAPISpecConfigMap.Name != "" {
+			specData, err := getConfigMapSpecData(parent.ObjectMeta.Namespace, parent.Spec.OpenAPISpecConfigMap.Name, parent.Spec.OpenAPISpecConfigMap.Key)
+			if err != nil || toSha1(specData) != status.ConfigMapHash {
+				log.Printf("[DEBUG][%s] Changed because configmap spec changed.", parent.Name)
+				changed = true
+			}
+		}
 	}
 
 	return changed
+}
+
+func getTargetIngress(parent *CloudEndpoint) (string, []string, error) {
+	var target string
+	var jwtAudiences []string
+
+	ingress, err := config.clientset.ExtensionsV1beta1().Ingresses(parent.Spec.TargetIngress.Namespace).Get(parent.Spec.TargetIngress.Name, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("[INFO][%s] waiting for Ingress %s", parent.Name, parent.Spec.TargetIngress.Name)
+		return "", nil, nil
+	}
+	// Get target from ingress IP
+	if len(ingress.Status.LoadBalancer.Ingress) < 1 {
+		log.Printf("[INFO][%s] waiting for loadbalancer status from Ingress %s", parent.Name, parent.Spec.TargetIngress.Name)
+		return "", nil, nil
+	}
+	target = ingress.Status.LoadBalancer.Ingress[0].IP
+
+	// Populate the jwtAudiences
+	if len(parent.Spec.TargetIngress.JWTServices) > 0 {
+		ingBackends, err := getIngBackends(ingress)
+		if err != nil {
+			return "", nil, err
+		}
+		bePatterns := make([]string, len(parent.Spec.TargetIngress.JWTServices))
+
+		for i, svcName := range parent.Spec.TargetIngress.JWTServices {
+			svc, err := config.clientset.CoreV1().Services(parent.Spec.TargetIngress.Namespace).Get(svcName, metav1.GetOptions{})
+			if err != nil {
+				return "", nil, fmt.Errorf("Failed to populate JWT audience from kubernetes service, not found: '%s', %v", svcName, err)
+			}
+			if svc.Spec.Type == corev1.ServiceTypeNodePort && len(svc.Spec.Ports) > 0 {
+				nodePort := strconv.Itoa(int(svc.Spec.Ports[0].NodePort))
+				found := false
+				for _, be := range ingBackends {
+					if strings.Contains(be, fmt.Sprintf("k8s-be-%s", nodePort)) {
+						bePatterns[i] = be
+						backend, err := config.clientCompute.BackendServices.Get(config.Project, be).Do()
+						if err == nil {
+							found = true
+							jwtAud := makeJWTAudience(config.ProjectNum, strconv.Itoa(int(backend.Id)))
+							log.Printf("[INFO][%s] Created jwtAud: %s", parent.Name, jwtAud)
+							jwtAudiences = append(jwtAudiences, jwtAud)
+						}
+					}
+				}
+				if found == false {
+					return "", nil, fmt.Errorf("Backend not found or is not ready for service: %s, NodePort: %s", svcName, nodePort)
+				}
+			} else {
+				return "", nil, fmt.Errorf("Service %s not type NodePort", svcName)
+			}
+		}
+	}
+	return target, jwtAudiences, nil
 }
 
 func calcParentSig(parent *CloudEndpoint, addStr string) string {
@@ -364,9 +388,13 @@ func calcParentSig(parent *CloudEndpoint, addStr string) string {
 	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
 
-func makeDefaultOpenAPISpec(endpoint, target string, jwtAudiences []string) (string, error) {
-	templateString := `
-swagger: "2.0"
+func validateOpenAPISpec(specOriginal string) error {
+	var spec map[string]interface{}
+	return yaml.Unmarshal([]byte(specOriginal), &spec)
+}
+
+func getWildcardAPITemplate() string {
+	return `swagger: "2.0"
 info:
   description: "wildcard config for any HTTP service."
   title: "General HTTP Service."
@@ -420,8 +448,7 @@ paths:
           description: Put
         default:
           description: Error
-`
-	templateJWTSecurityString := `
+{{- if .JWTAudiences }}
 security:
 - google_jwt: []
 securityDefinitions:
@@ -432,15 +459,15 @@ securityDefinitions:
     x-google-issuer: "https://cloud.google.com/iap"
     x-google-jwks_uri: "https://www.gstatic.com/iap/verify/public_key-jwk"
     x-google-audiences: "{{ StringsJoin .JWTAudiences "," }}"
+{{ end }}
 `
-	if jwtAudiences != nil {
-		templateString = templateString + templateJWTSecurityString
-	}
-	t, err := template.New("openapi.yaml").Funcs(template.FuncMap{"StringsJoin": strings.Join}).Parse(templateString)
+}
+
+func executeTemplate(templateSpec, endpoint, target string, jwtAudiences []string) (string, error) {
+	t, err := template.New("openapi.yaml").Funcs(template.FuncMap{"StringsJoin": strings.Join}).Parse(templateSpec)
 	if err != nil {
 		return "", err
 	}
-
 	type openAPISpecTemplateData struct {
 		Endpoint     string
 		Target       string
@@ -480,4 +507,16 @@ func getIngBackends(ing *v1beta1.Ingress) ([]string, error) {
 
 func makeJWTAudience(projectNum, backendID string) string {
 	return fmt.Sprintf("/projects/%s/global/backendServices/%s", projectNum, backendID)
+}
+
+func toSha1(data string) string {
+	h := sha1.New()
+	h.Write([]byte(data))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func getConfigMapSpecData(namespace string, name string, key string) (string, error) {
+	configMaps := config.clientset.CoreV1().ConfigMaps(namespace)
+	configMap, err := configMaps.Get(name, metav1.GetOptions{})
+	return configMap.Data[key], err
 }
