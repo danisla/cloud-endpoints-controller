@@ -178,7 +178,7 @@ define TEST_SERVICE_SPEC_CONFIGMAP_SPEC
 apiVersion: v1
 kind: ConfigMap 
 metadata: 
-  name: {{NAME}}-swagger 
+  name: {{NAME}}-openapi-spec
 data: 
   spec: |-
     swagger: "2.0"
@@ -263,7 +263,7 @@ spec:
     jwtServices:
     - {{NAME}}
   openAPISpecConfigMap: 
-    name: swagger
+    name: {{NAME}}-openapi-spec
     key: spec
 --- 
 $(call TEST_APP)
@@ -273,7 +273,7 @@ define CHANGED_CONFIGMAP
 apiVersion: v1
 kind: ConfigMap 
 metadata: 
-  name: {{NAME}}-swagger 
+  name: {{NAME}}-openapi-spec 
 data: 
   spec: |-
     swagger: "2.0"

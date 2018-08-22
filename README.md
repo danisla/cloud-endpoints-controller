@@ -58,7 +58,7 @@ helm install --name cloud-endpoints-controller --namespace=metacontroller charts
 
 ## IAP Ingress Tutorial
 
-[![button](http://gstatic.com/cloudssh/images/open-btn.png)](https://console.cloud.google.com/cloudshell/open?git_repo=https://github.com/danisla/cloud-endpoints-controller&page=editor&tutorial=examples/iap-esp/README.md)
+[![button](http://gstatic.com/cloudssh/images/open-btn.png)](https://console.cloud.google.com/cloudshell/open?git_repo=https://github.com/danisla/cloud-endpoints-controller&page=shell&tutorial=examples/iap-esp/README.md)
 
 Tutorial showing how to use the Cloud Endpoints Controller with the Identity Aware Proxy on Google Kubernetes Engine.
 
@@ -124,7 +124,8 @@ kubectl apply -f ingress-cloudep.yaml
 
 1. Create a CloudEndpoint resource like one of the examples below:
 
-#### Full APISpec
+#### Full OpenAPI Spec
+
 ```sh
 PROJECT=$(gcloud config get-value project)
 TARGET_IP=1.2.3.4
@@ -134,7 +135,7 @@ apiVersion: ctl.isla.solutions/v1
 kind: CloudEndpoint
 metadata:
   name: service1
-spec: |
+spec: |-
   openAPISpec:
     swagger: "2.0"
     info:
@@ -205,12 +206,17 @@ EOF
 kubectl apply -f service1-cloudep.yaml
 ```
 
-####  Template APISpec and Ingress:  
-With template APISpec's the {{.Target}}, {{.Endpoint}} and {{.JWTAudiences}} are filled in after the ingress is provisioned.
+#### Template OpenAPI Spec and Ingress:  
+
+The `spec.openAPISpec` field is a go template with the following substitutions:
+
+ - `{{.Target}}`: The external IP of the ingress resource when `spec.targetIngress` is specified.
+ - `{{.Endpoint}}`: The endpoint URL in the form of: `[NAME].endpoints.[PROJECT].cloud.goog`.
+ - `{{.JWTAudiences}}`: Comma-separated list of JWT audiences created from the backend services when `spec.targetIngress.jwtServices[]` is provided. Useful when using Cloud Endpoints with IAP.
 
 ```sh
 PROJECT=$(gcloud config get-value project)
-cat  >service3-cloudep-ing.yaml <<EOF
+cat > service4-cloudep-ing.yaml <<EOF
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -233,7 +239,12 @@ metadata:
   name: service4
 spec:
   project: ${PROJECT}
-  openAPISpec: |
+  targetIngress:
+    name: service4-ingress
+    namespace: default
+    jwtServices:
+    - service4
+  openAPISpec: |-
     swagger: "2.0"
     info:
       description: "wildcard config for any HTTP service."
@@ -300,28 +311,23 @@ spec:
     x-google-endpoints:
     - name: "{{.Endpoint}}"
       target: "{{.Target}}"
-  targetIngress:
-    name: service4-ingress
-    namespace: default
-    jwtServices:
-    - service4
 EOF
 
 kubectl apply -f service4-cloudep-ing.yaml
 ```
 
-####  Template APISpec in ConfigMap and Ingress: 
+####  Template OpenAPI Spec from ConfigMap and Ingress: 
 
 ```sh
 PROJECT=$(gcloud config get-value project)
 
-cat >service5-cloudep-cm-ing.yaml <<EOF
+cat > service5-cloudep-cm-ing.yaml <<EOF
 apiVersion: v1
 kind: ConfigMap 
 metadata: 
-  name: swagger 
+  name: service5-openapi-spec 
 data: 
-  spec: |
+  spec: |-
     swagger: "2.0"
     info:
       description: "wildcard config for any HTTP service."
@@ -388,7 +394,6 @@ data:
     x-google-endpoints:
     - name: "{{.Endpoint}}"
       target: "{{.Target}}"
-
 --- 
 apiVersion: extensions/v1beta1
 kind: Ingress
@@ -418,7 +423,7 @@ spec:
     jwtServices:
     - service5
   openAPISpecConfigMap: 
-    name: swagger
+    name: service5-openapi-spec
     key: spec
 --- 
 apiVersion: v1
