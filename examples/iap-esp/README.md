@@ -6,7 +6,7 @@ This example shows how to use the Cloud Endpoints Controller with IAP and an L7 
 
 **Figure 1.** *diagram of Google Cloud resources*
 
-![architecture diagram](./diagram.png)
+![architecture diagram](https://raw.githubusercontent.com/danisla/cloud-endpoints-controller/master/examples/iap-esp/diagram.png)
 
 ## Task 0 - Setup environment
 
