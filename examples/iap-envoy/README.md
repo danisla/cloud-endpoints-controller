@@ -70,9 +70,10 @@ kubectl expose deploy sample-app --type ClusterIP
 
 1. Go to the [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent).
 2. Under __Email address__, select the email address you want to display as a public contact. This must be your email address, or a Google Group you own.
-3. Enter the __Product name__ you would like to display.
-4. Add any optional details you’d like.
-5. Click __Save__.
+3. Enter the __Application name__ you would like to display.
+4. Under __Authorized Domains__, add `iap-tutorial.endpoints.PROJECT_ID.cloud.goog`, replacing `PROJECT_ID` with the ID of your project.
+5. Add any optional details you’d like.
+6. Click __Save__.
 
 ## Task 4 - Set up IAP access
 

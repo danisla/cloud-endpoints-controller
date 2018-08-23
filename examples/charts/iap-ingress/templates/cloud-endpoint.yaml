@@ -15,6 +15,6 @@ spec:
     jwtServices:
     - {{ .Values.endpointServiceName }}-proxy
   {{- if .Values.openAPISpec != nil }}
-  openAPISpec: 
-  {{ toYaml .Values.openAPISpec | indent 2 }}
+  openAPISpec: |-
+  {{ .Values.openAPISpec | indent 2 }}
  {{- end }}
