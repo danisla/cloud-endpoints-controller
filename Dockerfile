@@ -1,6 +1,6 @@
 FROM golang:1.10-alpine AS build
-RUN apk add --update ca-certificates bash curl
-RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+RUN apk add --update ca-certificates bash curl git
+RUN curl https://raw.githubusercontent.com/golang/dep/v0.5.0/install.sh | sh
 
 COPY . /go/src/github.com/danisla/cloud-endpoints-controller/
 WORKDIR /go/src/github.com/danisla/cloud-endpoints-controller/cmd/cloud-endpoints-controller
