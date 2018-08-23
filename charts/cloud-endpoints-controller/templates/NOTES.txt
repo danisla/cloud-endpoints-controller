@@ -1,19 +1,42 @@
 1. To use the cloud-endpoints-controller, create an CloudEndpoint resouces like the example below:
 
 PROJECT=$(gcloud config get-value project)
-TARGET_IP=0.0.0.0
 
 kubectl create -f - <<EOF
+PROJECT=$(gcloud config get-value project)
+cat > service1-cloudep-ing.yaml <<EOF
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: service1-ingress
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+spec:
+  rules:
+  - host: service1.endpoints.${PROJECT}.cloud.goog
+    http:
+      paths:
+      - path:
+        backend:
+          serviceName: service1
+          servicePort: 80
+--- 
 apiVersion: ctl.isla.solutions/v1
 kind: CloudEndpoint
 metadata:
   name: service1
 spec:
-  openAPISpec:
+  project: ${PROJECT}
+  targetIngress:
+    name: service1-ingress
+    namespace: default
+    jwtServices:
+    - service1
+  openAPISpec: |-
     swagger: "2.0"
     info:
       description: "wildcard config for any HTTP service."
-      title: "General HTTP Service."
+      title: "Test Template Spec: service1"
       version: "1.0.0"
     basePath: "/"
     consumes:
@@ -21,6 +44,7 @@ spec:
     produces:
     - "application/json"
     schemes:
+    - "http"
     - "https"
     paths:
       "/**":
@@ -59,6 +83,7 @@ spec:
               description: Put
             default:
               description: Error
+    {{- if .JWTAudiences }}
     security:
     - google_jwt: []
     securityDefinitions:
@@ -68,12 +93,12 @@ spec:
         type: "oauth2"
         x-google-issuer: "https://cloud.google.com/iap"
         x-google-jwks_uri: "https://www.gstatic.com/iap/verify/public_key-jwk"
-        x-google-audiences: ""
-
-    host: "service1.endpoints.${PROJECT}.cloud.goog"
+        x-google-audiences: "{{ StringsJoin .JWTAudiences "," }}}"
+     {{ end }}
+    host: "{{.Endpoint}}"
     x-google-endpoints:
-    - name: "service1.endpoints.${PROJECT}.cloud.goog"
-      target: "${TARGET_IP}"
+    - name: "{{.Endpoint}}"
+      target: "{{.Target}}"
 EOF
 
 4. Example kubectl commands:
