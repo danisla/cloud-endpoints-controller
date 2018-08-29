@@ -23,7 +23,13 @@ mkdir -p ~/.kube/plugins
 git clone https://github.com/danisla/kubefunc.git ~/.kube/plugins/kubefunc
 ```
 
-3. Create GKE cluster:
+3. Enable the Service Management API:
+
+```
+gcloud services enable servicemanagement.googleapis.com
+```
+
+4. Create GKE cluster:
 
 ```
 VERSION=$(gcloud container get-server-config --zone us-central1-c --format='value(validMasterVersions[0])')
