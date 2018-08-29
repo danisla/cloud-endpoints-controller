@@ -33,7 +33,7 @@ gcloud container clusters create dev --zone=us-central1-c --cluster-version=${VE
 4. Change to the example directory:
 
 ```
-cd examples/iap-esp
+[[ `basename $PWD` != iap-esp ]] && cd examples/iap-esp
 ```
 
 ## Task 1 - Install Cloud Endpoints Controller
