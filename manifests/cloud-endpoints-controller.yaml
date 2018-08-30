@@ -48,7 +48,7 @@ spec:
       serviceAccountName: cloud-endpoints-controller
       containers:
       - name: cloud-endpoints-controller
-        image: gcr.io/cloud-solutions-group/cloud-endpoints-controller:0.2.0
+        image: gcr.io/cloud-solutions-group/cloud-endpoints-controller:0.2.1
         command: ["/usr/bin/cloud-endpoints-controller"]
 ---
 apiVersion: v1
