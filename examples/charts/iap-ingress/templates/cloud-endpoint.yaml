@@ -16,5 +16,5 @@ spec:
     - {{ .Values.endpointServiceName }}-proxy
   {{- if .Values.openAPISpec }}
   openAPISpec: |-
-  {{ .Values.openAPISpec | indent 2 }}
+{{ .Values.openAPISpec | indent 4 }}
  {{- end }}
