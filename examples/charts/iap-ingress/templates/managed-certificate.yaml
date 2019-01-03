@@ -1,0 +1,14 @@
+{{- if .Values.gclbCert }}
+apiVersion: gke.googleapis.com/v1alpha1
+kind: ManagedCertificate
+metadata:
+  name: {{ .Values.endpointServiceName }}
+  labels:
+    app: {{ template "iap-ingress.name" . }}
+    chart: {{ template "iap-ingress.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  domains:
+    - {{ template "iap-ingress.endpointUrl" . }}
+{{- end }}

@@ -1,3 +1,4 @@
+{{- if .Values.certManager.enabled }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -96,3 +97,4 @@ spec:
           kubectl -n ${NAMESPACE} patch ingress ${INGRESS_NAME} --type='json' -p '[{"op": "add", "path": "/spec/tls", "value": [{"secretName": "'${TLS_SECRET_NAME}'"}]}]'
 
           echo "Done"
+{{- end }}

@@ -56,10 +56,13 @@ projectID:
 
 ingress:
   annotations:
-    ingress.kubernetes.io/ssl-redirect: "true"
+    #ingress.kubernetes.io/ssl-redirect: "true"
   path: /*
 
-cert:
-  enabled: true
+certManager:
+  enabled: false
   issuer: letsencrypt-production
   kind: ClusterIssuer
+
+gclbCert:
+  enabled: true

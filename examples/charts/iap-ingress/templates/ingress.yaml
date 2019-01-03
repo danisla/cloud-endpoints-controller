@@ -7,8 +7,11 @@ metadata:
     chart: {{ template "iap-ingress.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
-{{- with .Values.ingress.annotations }}
   annotations:
+{{- if .Values.gclbCert.enabled }}
+    gke.googleapis.com/managed-certificates: {{ .Values.endpointServiceName }}
+{{- end }}
+{{- with .Values.ingress.annotations }}
 {{ toYaml . | indent 4 }}
 {{- end }}
 spec:
