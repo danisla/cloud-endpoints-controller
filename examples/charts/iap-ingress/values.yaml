@@ -33,8 +33,8 @@ envoy:
   enabled: false
 
   image:
-    repository: gcr.io/kubeflow-images-public/envoy
-    tag: v20180309-0fb4886b463698702b6a08955045731903a18738
+    repository: envoyproxy/envoy
+    tag: v1.9.0
     pullPolicy: IfNotPresent
 
   # Name of configmap with envoy config, if not specified, a default one will be created.
