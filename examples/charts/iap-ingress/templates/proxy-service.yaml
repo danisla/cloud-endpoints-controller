@@ -17,4 +17,5 @@ spec:
     protocol: TCP
   selector:
     app: {{ template "iap-ingress.name" . }}
+    release: {{ .Release.Name }}
   type: NodePort
